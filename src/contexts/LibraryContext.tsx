@@ -61,6 +61,7 @@ type LibraryContextValue = {
   permanentlyDeleteItem: (id: string) => void;
   removeItem: (id: string) => void;
   addCustomTag: (tag: string) => void;
+  updateItem: (id: string, patch: Partial<Pick<LibraryItem, "tags">>) => void;
   updateSettings: (patch: Partial<LibrarySettings>) => void;
   updateVideoPosition: (id: string, position: number, duration: number) => void;
   filteredItems: (tag: string | null) => LibraryItem[];
@@ -208,6 +209,19 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [update]
   );
 
+  const updateItem = useCallback(
+    (id: string, patch: Partial<Pick<LibraryItem, "tags">>) => {
+      update((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => {
+          const itemId = item.type === "video" ? (item as VideoItem).ytId : (item as PlaylistChannel).ytPlaylistId;
+          return itemId === id ? { ...item, ...patch } : item;
+        }),
+      }));
+    },
+    [update]
+  );
+
   const updateSettings = useCallback(
     (patch: Partial<LibrarySettings>) => {
       update((prev) => ({
@@ -267,6 +281,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         permanentlyDeleteItem,
         removeItem: archiveItem, // Backward compat
         addCustomTag,
+        updateItem,
         updateSettings,
         updateVideoPosition,
         filteredItems,

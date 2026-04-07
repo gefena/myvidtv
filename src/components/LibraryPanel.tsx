@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
+import { TagPicker } from "./TagPicker";
+import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { LibraryItem, VideoItem, PlaylistChannel } from "@/types/library";
 
 type LibraryPanelProps = {
@@ -223,6 +226,12 @@ function LibraryCard({
   onRestore: () => void;
   onDelete: () => void;
 }) {
+  const { customTags, updateItem, addCustomTag } = useLibrary();
+  const [editing, setEditing] = useState(false);
+  const [editTags, setEditTags] = useState<string[]>(item.tags);
+
+  const itemId = item.type === "video" ? (item as VideoItem).ytId : (item as PlaylistChannel).ytPlaylistId;
+
   const thumbnail =
     item.type === "video"
       ? (item as VideoItem).thumbnail
@@ -233,137 +242,228 @@ function LibraryCard({
       ? (item as VideoItem).channelName
       : `${(item as PlaylistChannel).videoCount > 0 ? `${(item as PlaylistChannel).videoCount} videos` : "Playlist"}`;
 
+  const handleEditOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTags([...item.tags]);
+    setEditing(true);
+  };
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    updateItem(itemId, { tags: editTags });
+    editTags.forEach((t) => {
+      if (!PREDEFINED_TAGS.includes(t as (typeof PREDEFINED_TAGS)[number]) && !customTags.includes(t)) {
+        addCustomTag(t);
+      }
+    });
+    setEditing(false);
+  };
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditing(false);
+  };
+
+  const actionBtnStyle = (color: string, mobileOpacity = 1, desktopOpacity = 0.3) => ({
+    background: "none" as const,
+    border: "none" as const,
+    color: isMobile ? color : "var(--text-muted)",
+    cursor: "pointer" as const,
+    fontSize: isMobile ? "16px" : "14px",
+    lineHeight: 1,
+    opacity: isMobile ? mobileOpacity : desktopOpacity,
+    minWidth: isMobile ? "44px" : undefined,
+    minHeight: isMobile ? "44px" : undefined,
+    padding: isMobile ? "8px" : "2px",
+    transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
+    display: "flex" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  });
+
   return (
     <div
       style={{
         display: "flex",
-        gap: "10px",
-        alignItems: "flex-start",
+        flexDirection: "column",
         padding: "8px",
         borderRadius: "8px",
-        cursor: isArchive ? "default" : "pointer",
+        cursor: isArchive || editing ? "default" : "pointer",
         background: isActive ? "var(--surface-2)" : "transparent",
         border: `1px solid ${isActive ? "var(--violet)" : "transparent"}`,
         transition: "background 0.15s, border-color 0.15s",
         position: "relative",
         marginBottom: "2px",
       }}
-      onClick={onSelect}
+      onClick={editing ? undefined : onSelect}
       onMouseEnter={(e) => {
-        if (!isActive && !isArchive) (e.currentTarget as HTMLDivElement).style.background = "var(--surface-2)";
+        if (!isActive && !isArchive && !editing) (e.currentTarget as HTMLDivElement).style.background = "var(--surface-2)";
       }}
       onMouseLeave={(e) => {
-        if (!isActive && !isArchive) (e.currentTarget as HTMLDivElement).style.background = "transparent";
+        if (!isActive && !isArchive && !editing) (e.currentTarget as HTMLDivElement).style.background = "transparent";
       }}
     >
-      {/* Thumbnail */}
-      <div style={{ position: "relative", width: 80, height: 45, flexShrink: 0, borderRadius: "4px", overflow: "hidden" }}>
-        {thumbnail ? (
-          <Image src={thumbnail} alt={title} fill style={{ objectFit: "cover" }} />
-        ) : (
-          <div style={{ width: "100%", height: "100%", background: "var(--border)" }} />
-        )}
-        {/* Playlist indicator */}
-        {item.type === "playlist-channel" && (
-          <div style={{
-            position: "absolute", bottom: 0, right: 0,
-            background: "rgba(0,0,0,0.7)", fontSize: "9px", color: "#fff",
-            padding: "1px 4px", borderTopLeftRadius: "3px",
-          }}>
-            ≡
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: "13px", color: "var(--text)", fontWeight: isActive ? 500 : 400,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-          lineHeight: 1.3, marginBottom: "3px",
-        }}>
-          {title}
+      {/* Top row: thumbnail + info + action buttons */}
+      <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+        {/* Thumbnail */}
+        <div style={{ position: "relative", width: 80, height: 45, flexShrink: 0, borderRadius: "4px", overflow: "hidden" }}>
+          {thumbnail ? (
+            <Image src={thumbnail} alt={title} fill style={{ objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: "100%", height: "100%", background: "var(--border)" }} />
+          )}
+          {item.type === "playlist-channel" && (
+            <div style={{
+              position: "absolute", bottom: 0, right: 0,
+              background: "rgba(0,0,0,0.7)", fontSize: "9px", color: "#fff",
+              padding: "1px 4px", borderTopLeftRadius: "3px",
+            }}>
+              ≡
+            </div>
+          )}
         </div>
-        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub}</div>
-        {!isArchive && item.tags.length > 0 && (
-          <div style={{ display: "flex", gap: "3px", flexWrap: "wrap", marginTop: "4px" }}>
-            {item.tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
+
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: "13px", color: "var(--text)", fontWeight: isActive ? 500 : 400,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            lineHeight: 1.3, marginBottom: "3px",
+          }}>
+            {title}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub}</div>
+          {!isArchive && !editing && item.tags.length > 0 && (
+            <div style={{ display: "flex", gap: "3px", flexWrap: "wrap", marginTop: "4px" }}>
+              {item.tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag}
+                  style={{
+                    background: "var(--surface-2)",
+                    borderRadius: "3px",
+                    color: "var(--violet-soft)",
+                    fontSize: "10px",
+                    padding: "1px 5px",
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+          {isArchive ? (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRestore(); }}
+                aria-label="Restore"
+                style={actionBtnStyle("var(--violet-soft)")}
+                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              >
+                ↺
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                aria-label="Permanently Delete"
+                style={actionBtnStyle("#f87171")}
+                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              >
+                🗑
+              </button>
+            </>
+          ) : editing ? (
+            <>
+              <button
+                onClick={handleSave}
+                aria-label="Save tags"
                 style={{
-                  background: "var(--surface-2)",
-                  borderRadius: "3px",
-                  color: "var(--violet-soft)",
-                  fontSize: "10px",
-                  padding: "1px 5px",
+                  background: "var(--violet)",
+                  border: "none",
+                  borderRadius: "20px",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  padding: "3px 10px",
+                  lineHeight: 1.4,
                 }}
               >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
+                Save
+              </button>
+              <button
+                onClick={handleCancel}
+                aria-label="Cancel editing"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "20px",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  padding: "3px 10px",
+                  lineHeight: 1.4,
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleEditOpen}
+                aria-label="Edit tags"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: isMobile ? "var(--text-muted)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  opacity: isMobile ? 0.7 : 0.3,
+                  padding: isMobile ? "8px 10px" : "2px 6px",
+                  transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
+                  lineHeight: 1.4,
+                  minWidth: isMobile ? "44px" : undefined,
+                  minHeight: isMobile ? "44px" : undefined,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              >
+                # Tags
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); onArchive(); }}
+                aria-label="Archive"
+                style={actionBtnStyle("#f87171", 0.7)}
+                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              >
+                ×
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Action buttons */}
-      <div style={{ position: "absolute", top: "6px", right: "6px", display: "flex", gap: "4px" }}>
-        {isArchive ? (
-          <>
-            <button
-              onClick={(e) => { e.stopPropagation(); onRestore(); }}
-              aria-label="Restore"
-              style={{
-                background: "none", border: "none", color: isMobile ? "var(--violet-soft)" : "var(--text-muted)",
-                cursor: "pointer", fontSize: isMobile ? "18px" : "14px", lineHeight: 1,
-                opacity: isMobile ? 1 : 0.3,
-                minWidth: isMobile ? "44px" : undefined, minHeight: isMobile ? "44px" : undefined,
-                padding: isMobile ? "8px" : "2px",
-                transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-              onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
-              onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
-            >
-              ↺
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              aria-label="Permanently Delete"
-              style={{
-                background: "none", border: "none", color: isMobile ? "#f87171" : "var(--text-muted)",
-                cursor: "pointer", fontSize: isMobile ? "18px" : "14px", lineHeight: 1,
-                opacity: isMobile ? 1 : 0.3,
-                minWidth: isMobile ? "44px" : undefined, minHeight: isMobile ? "44px" : undefined,
-                padding: isMobile ? "8px" : "2px",
-                transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-              onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-              onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
-            >
-              🗑
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={(e) => { e.stopPropagation(); onArchive(); }}
-            aria-label="Archive"
-            style={{
-              background: "none", border: "none", color: isMobile ? "#f87171" : "var(--text-muted)",
-              cursor: "pointer", fontSize: isMobile ? "20px" : "14px", lineHeight: 1,
-              opacity: isMobile ? 0.7 : 0.3,
-              minWidth: isMobile ? "44px" : undefined, minHeight: isMobile ? "44px" : undefined,
-              padding: isMobile ? "8px" : "2px",
-              transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}
-            onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-            onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
-          >
-            ×
-          </button>
-        )}
-      </div>
+      {/* Inline tag editor */}
+      {editing && (
+        <div
+          style={{ marginTop: "10px" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <TagPicker
+            selected={editTags}
+            customTags={customTags}
+            onChange={setEditTags}
+          />
+        </div>
+      )}
     </div>
   );
 }
