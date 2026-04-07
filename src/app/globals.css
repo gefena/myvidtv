@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+/* ── Dark theme (default) ─────────────────────────────────── */
+:root,
+:root[data-theme="dark"] {
+  --bg: #08080f;
+  --surface: #0f0f1a;
+  --surface-2: #161625;
+  --border: #1e1e35;
+
+  --violet: #7c3aed;
+  --violet-glow: rgba(124, 58, 237, 0.25);
+  --violet-soft: #a78bfa;
+
+  --text: #f0f0ff;
+  --text-muted: #6b6b8a;
+}
+
+/* ── Light theme ──────────────────────────────────────────── */
+:root[data-theme="light"] {
+  --bg: #f4f4fa;
+  --surface: #ffffff;
+  --surface-2: #f0eeff;
+  --border: #e0deff;
+
+  --violet: #7c3aed;
+  --violet-glow: rgba(124, 58, 237, 0.1);
+  --violet-soft: #5b21b6;
+
+  --text: #0d0d1a;
+  --text-muted: #5c5c7a;
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Responsive layout ────────────────────────────────────── */
+
+/* Tablet: stack library below player */
+@media (max-width: 900px) {
+  .main-content {
+    flex-direction: column !important;
+  }
+}
+
+/* ── Scrollbar styling ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--violet);
+}
