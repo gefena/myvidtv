@@ -10,7 +10,24 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "MyTV — Your Personal TV",
-  description: "A personal TV experience for your curated YouTube content.",
+  description: "A dark, cinematic personal TV experience for your curated YouTube content. No account required — your library lives on your device.",
+  metadataBase: new URL("https://mytv-black-mu.vercel.app"),
+  openGraph: {
+    title: "MyTV — Your Personal TV",
+    description: "A dark, cinematic personal TV experience for your curated YouTube content. No account required — your library lives on your device.",
+    url: "https://mytv-black-mu.vercel.app",
+    siteName: "MyTV",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "MyTV — Your Personal TV",
+    description: "A dark, cinematic personal TV experience for your curated YouTube content. No account required.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 // Inline script: reads theme from localStorage and applies data-theme before
