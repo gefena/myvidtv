@@ -13,6 +13,7 @@ export const PREDEFINED_TAGS = [
   "cooking",
   "fitness",
   "talk",
+  "focus",
 ] as const;
 
 export const DEFAULT_SETTINGS = {

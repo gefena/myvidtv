@@ -237,12 +237,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       update((prev) => {
         const isFinished = duration > 0 && position / duration > 0.95;
         const posToSave = isFinished ? 0 : Math.floor(position);
+        const ratioToSave = isFinished ? 0 : duration > 0 ? position / duration : 0;
 
         return {
           ...prev,
           items: prev.items.map((item) => {
             if (item.type === "video" && (item as VideoItem).ytId === id) {
-              return { ...item, lastPosition: posToSave };
+              return { ...item, lastPosition: posToSave, lastWatchedRatio: ratioToSave };
             }
             return item;
           }),

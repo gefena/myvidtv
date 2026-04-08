@@ -7,6 +7,7 @@ export type VideoItem = {
   tags: string[];
   addedAt: number; // unix ms
   lastPosition?: number; // seconds
+  lastWatchedRatio?: number; // 0–1, saved at playback time
 };
 
 export type PlaylistChannel = {

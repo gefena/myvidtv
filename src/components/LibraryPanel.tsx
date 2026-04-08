@@ -451,6 +451,20 @@ function LibraryCard({
         </div>
       </div>
 
+      {/* Watch progress bar — video items only, shown when ratio > 0 */}
+      {item.type === "video" && !isArchive && !editing && !!((item as VideoItem).lastWatchedRatio) && (
+        <div style={{ marginTop: "6px", height: "2px", background: "var(--border)", borderRadius: "1px" }}>
+          <div
+            style={{
+              height: "100%",
+              width: `${((item as VideoItem).lastWatchedRatio ?? 0) * 100}%`,
+              background: "var(--violet)",
+              borderRadius: "1px",
+            }}
+          />
+        </div>
+      )}
+
       {/* Inline tag editor */}
       {editing && (
         <div
