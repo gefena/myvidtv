@@ -86,30 +86,31 @@ export function AppShell() {
           {/* Spacer / empty area when nothing is playing */}
           <div style={{ flex: 1 }} />
 
-          {/* Library peek bar */}
-          {!settings.listenMode && (
-            <button
-              onClick={() => setLibrarySheetOpen(true)}
-              style={{
-                width: "100%",
-                background: "var(--surface)",
-                border: "none",
-                borderTop: "1px solid var(--border)",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                padding: "14px 20px",
-                fontSize: "14px",
-                paddingBottom: "calc(14px + env(safe-area-inset-bottom))",
-              }}
-            >
-              <span>☰</span>
-              <span>Library</span>
-            </button>
-          )}
+          {/* Library peek bar — always visible so user can switch tracks in listen mode too */}
+          <button
+            onClick={() => setLibrarySheetOpen(true)}
+            style={{
+              width: "100%",
+              background: "var(--surface)",
+              border: "none",
+              borderTop: "1px solid var(--border)",
+              color: "var(--text-muted)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "14px 20px",
+              fontSize: "14px",
+              // In listen mode push content above the fixed mini bar (~104px) + safe area
+              paddingBottom: settings.listenMode
+                ? "calc(104px + env(safe-area-inset-bottom))"
+                : "calc(14px + env(safe-area-inset-bottom))",
+            }}
+          >
+            <span>☰</span>
+            <span>Library</span>
+          </button>
 
           {/* Library sheet */}
           <AnimatePresence>

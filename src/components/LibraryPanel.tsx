@@ -154,6 +154,9 @@ export function LibraryPanel({
                   whiteSpace: "nowrap",
                   transition: "color 0.15s",
                   boxShadow: active ? `0 2px 8px var(--violet-glow)` : "none",
+                  minHeight: "44px",
+                  alignItems: "flex-end",
+                  display: "flex",
                 }}
               >
                 {tag}

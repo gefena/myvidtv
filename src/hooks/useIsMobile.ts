@@ -5,11 +5,14 @@ import { useState, useEffect } from "react";
 const MOBILE_BREAKPOINT = 600;
 
 export function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState(false);
+  // Lazy initializer runs synchronously on the client on first render —
+  // avoids the desktop→mobile flash without needing a separate effect.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT
+  );
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
-    check();
 
     let timeout: ReturnType<typeof setTimeout>;
     const debounced = () => {
