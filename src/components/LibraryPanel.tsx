@@ -115,7 +115,7 @@ export function LibraryPanel({
                 padding: "3px 6px",
               }}
             >
-              ▶
+              ◀
             </button>
           </div>
         </div>
@@ -267,7 +267,7 @@ function LibraryCard({
     setEditing(false);
   };
 
-  const actionBtnStyle = (color: string, mobileOpacity = 1, desktopOpacity = 0.3) => ({
+  const actionBtnStyle = (color: string, mobileOpacity = 1, desktopOpacity = 0.55) => ({
     background: "none" as const,
     border: "none" as const,
     color: isMobile ? color : "var(--text-muted)",
@@ -290,20 +290,32 @@ function LibraryCard({
         display: "flex",
         flexDirection: "column",
         padding: "8px",
+        paddingLeft: isActive ? "5px" : "8px",
         borderRadius: "8px",
         cursor: isArchive || editing ? "default" : "pointer",
         background: isActive ? "var(--surface-2)" : "transparent",
         border: `1px solid ${isActive ? "var(--violet)" : "transparent"}`,
-        transition: "background 0.15s, border-color 0.15s",
+        borderLeft: isActive ? "3px solid var(--violet)" : "1px solid transparent",
+        transition: "background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s",
         position: "relative",
         marginBottom: "2px",
       }}
       onClick={editing ? undefined : onSelect}
       onMouseEnter={(e) => {
-        if (!isActive && !isArchive && !editing) (e.currentTarget as HTMLDivElement).style.background = "var(--surface-2)";
+        if (!isActive && !isArchive && !editing) {
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.background = "var(--surface-2)";
+          el.style.transform = "translateY(-1px)";
+          el.style.boxShadow = "0 4px 16px rgba(124,58,237,0.12)";
+        }
       }}
       onMouseLeave={(e) => {
-        if (!isActive && !isArchive && !editing) (e.currentTarget as HTMLDivElement).style.background = "transparent";
+        if (!isActive && !isArchive && !editing) {
+          const el = e.currentTarget as HTMLDivElement;
+          el.style.background = "transparent";
+          el.style.transform = "";
+          el.style.boxShadow = "";
+        }
       }}
     >
       {/* Top row: thumbnail + info + action buttons */}
@@ -365,7 +377,7 @@ function LibraryCard({
                 aria-label="Restore"
                 style={actionBtnStyle("var(--violet-soft)")}
                 onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
                 ↺
               </button>
@@ -374,7 +386,7 @@ function LibraryCard({
                 aria-label="Permanently Delete"
                 style={actionBtnStyle("#f87171")}
                 onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
                 🗑
               </button>
@@ -425,7 +437,7 @@ function LibraryCard({
                   color: isMobile ? "var(--text-muted)" : "var(--text-muted)",
                   cursor: "pointer",
                   fontSize: "11px",
-                  opacity: isMobile ? 0.7 : 0.3,
+                  opacity: isMobile ? 0.7 : 0.55,
                   padding: isMobile ? "8px 10px" : "2px 6px",
                   transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
                   lineHeight: 1.4,
@@ -436,18 +448,18 @@ function LibraryCard({
                   justifyContent: "center",
                 }}
                 onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
                 # Tags
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); onArchive(); }}
-                aria-label="Archive"
+                aria-label="Archive item"
                 style={actionBtnStyle("#f87171", 0.7)}
                 onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.3"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
-                ×
+                ⊟
               </button>
             </>
           )}

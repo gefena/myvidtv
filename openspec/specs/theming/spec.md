@@ -13,11 +13,11 @@ The system SHALL apply the dark cinematic theme on first load, using near-black 
 - **THEN** the dark theme is applied with no flash of unstyled content
 
 ### Requirement: Light theme is available via toggle
-The system SHALL provide a theme toggle that switches between dark and light themes. The light theme uses warm off-white backgrounds and the same violet accent.
+The system SHALL provide a theme toggle that switches between dark and light themes. The light theme SHALL use violet-tinted off-white backgrounds (`--bg: #eeeef8`, `--surface: #f7f6ff`) rather than pure white, maintaining the violet brand identity in light mode.
 
 #### Scenario: User activates light theme
 - **WHEN** the user clicks the theme toggle
-- **THEN** the site switches to the light theme immediately without a page reload
+- **THEN** the site switches to the light theme with off-white, violet-tinted surfaces (not pure white)
 
 #### Scenario: User switches back to dark theme
 - **WHEN** the user clicks the theme toggle again

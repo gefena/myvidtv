@@ -18,10 +18,10 @@
 
 /* ── Light theme ──────────────────────────────────────────── */
 :root[data-theme="light"] {
-  --bg: #f4f4fa;
-  --surface: #ffffff;
-  --surface-2: #f0eeff;
-  --border: #e0deff;
+  --bg: #eeeef8;
+  --surface: #f7f6ff;
+  --surface-2: #ebe8ff;
+  --border: #d5d0f5;
 
   --violet: #7c3aed;
   --violet-glow: rgba(124, 58, 237, 0.1);

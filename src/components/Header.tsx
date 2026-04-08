@@ -21,8 +21,8 @@ export function Header({ onAdd }: HeaderProps) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         {/* Viewport mark — rounded frame + violet signal dot */}
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5"/>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--text-muted)" }}>
+          <rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="currentColor" strokeWidth="1.5"/>
           <circle cx="8.5" cy="16" r="3.5" fill="#8b5cf6"/>
         </svg>
         {/* Two-tone wordmark */}
