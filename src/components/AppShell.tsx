@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -9,10 +9,12 @@ import { EmptyState } from "./EmptyState";
 import { PlayerArea } from "./PlayerArea";
 import { LibraryPanel } from "./LibraryPanel";
 import { AddFlow } from "./AddFlow";
-import type { LibraryItem } from "@/types/library";
+import { ImportConfirm } from "./ImportConfirm";
+import { importLibrary as parseImportFile } from "@/lib/exportImport";
+import type { LibraryItem, LibraryData } from "@/types/library";
 
 export function AppShell() {
-  const { items, archivedItems, settings, updateSettings, hydrated } = useLibrary();
+  const { items, archivedItems, settings, updateSettings, hydrated, exportLibrary } = useLibrary();
   const isMobile = useIsMobile();
   const [addOpen, setAddOpen] = useState(false);
   const [addInitialUrl, setAddInitialUrl] = useState("");
@@ -21,9 +23,34 @@ export function AppShell() {
   const [libraryView, setLibraryView] = useState<"library" | "archive">("library");
   const [showArchive, setShowArchive] = useState(false);
   const [librarySheetOpen, setLibrarySheetOpen] = useState(false);
+  const [importConfirmOpen, setImportConfirmOpen] = useState(false);
+  const [pendingImportData, setPendingImportData] = useState<LibraryData | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleItemEnd = useCallback((next: LibraryItem) => {
     setCurrentItem(next);
+  }, []);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so the same file can be re-selected if user retries
+    e.target.value = "";
+    try {
+      const data = await parseImportFile(file);
+      setPendingImportData(data);
+      setImportError(null);
+      setImportConfirmOpen(true);
+    } catch (err) {
+      setPendingImportData(null);
+      setImportError(err instanceof Error ? err.message : "Unknown error.");
+      setImportConfirmOpen(true);
+    }
   }, []);
 
   // Track values to detect changes and adjust state during render
@@ -76,6 +103,7 @@ export function AppShell() {
             setLibraryView("archive");
             updateSettings({ libraryCollapsed: false });
           }}
+          onImport={handleImportClick}
         />
       ) : isMobile ? (
         /* ── Mobile layout ── */
@@ -159,6 +187,52 @@ export function AppShell() {
                           }}
                         >
                           + Add
+                        </button>
+                      )}
+                      {libraryView === "library" && (
+                        <button
+                          onClick={exportLibrary}
+                          aria-label="Export library"
+                          title="Export library"
+                          style={{
+                            background: "none",
+                            border: "1px solid var(--border)",
+                            borderRadius: "4px",
+                            color: "var(--text-muted)",
+                            cursor: "pointer",
+                            fontSize: "13px",
+                            padding: "3px 8px",
+                            minWidth: "44px",
+                            minHeight: "44px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          ↓
+                        </button>
+                      )}
+                      {libraryView === "library" && (
+                        <button
+                          onClick={handleImportClick}
+                          aria-label="Import library"
+                          title="Import library"
+                          style={{
+                            background: "none",
+                            border: "1px solid var(--border)",
+                            borderRadius: "4px",
+                            color: "var(--text-muted)",
+                            cursor: "pointer",
+                            fontSize: "13px",
+                            padding: "3px 8px",
+                            minWidth: "44px",
+                            minHeight: "44px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          ↑
                         </button>
                       )}
                       <button
@@ -253,6 +327,8 @@ export function AppShell() {
                   currentItem={currentItem}
                   onAdd={() => setAddOpen(true)}
                   onCollapse={handleCollapseToggle}
+                  onExport={exportLibrary}
+                  onImport={handleImportClick}
                   view={libraryView}
                   onViewChange={setLibraryView}
                 />
@@ -286,6 +362,26 @@ export function AppShell() {
         <AddFlow
           initialUrl={addInitialUrl}
           onClose={() => { setAddOpen(false); setAddInitialUrl(""); }}
+        />
+      )}
+
+      {/* Hidden file input for import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+
+      {importConfirmOpen && (
+        <ImportConfirm
+          data={pendingImportData}
+          error={importError}
+          onReplace={() => setImportConfirmOpen(false)}
+          onMerge={() => setImportConfirmOpen(false)}
+          onDismiss={() => setImportConfirmOpen(false)}
+          onRetry={() => { setImportConfirmOpen(false); fileInputRef.current?.click(); }}
         />
       )}
     </div>

@@ -6,9 +6,10 @@ type EmptyStateProps = {
   onAdd: (url: string) => void;
   hasArchived?: boolean;
   onViewArchive?: () => void;
+  onImport?: () => void;
 };
 
-export function EmptyState({ onAdd, hasArchived, onViewArchive }: EmptyStateProps) {
+export function EmptyState({ onAdd, hasArchived, onViewArchive, onImport }: EmptyStateProps) {
   const [url, setUrl] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -130,6 +131,25 @@ export function EmptyState({ onAdd, hasArchived, onViewArchive }: EmptyStateProp
               }}
             >
               view archived items →
+            </button>
+          </p>
+        )}
+        {onImport && (
+          <p style={{ color: "var(--text-muted)", fontSize: "13px", margin: "12px 0 0" }}>
+            or{" "}
+            <button
+              onClick={onImport}
+              style={{
+                background: "none",
+                border: "none",
+                color: "var(--violet-soft)",
+                cursor: "pointer",
+                fontSize: "13px",
+                padding: 0,
+                textDecoration: "underline",
+              }}
+            >
+              import from a backup file →
             </button>
           </p>
         )}

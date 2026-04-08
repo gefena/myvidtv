@@ -15,6 +15,8 @@ type LibraryPanelProps = {
   currentItem: LibraryItem | null;
   onAdd: () => void;
   onCollapse: () => void;
+  onExport?: () => void;
+  onImport?: () => void;
   view: "library" | "archive";
   onViewChange: (view: "library" | "archive") => void;
   isMobile?: boolean;
@@ -31,6 +33,8 @@ export function LibraryPanel({
   currentItem,
   onAdd,
   onCollapse,
+  onExport,
+  onImport,
   view,
   onViewChange,
   isMobile = false,
@@ -85,6 +89,42 @@ export function LibraryPanel({
                 }}
               >
                 + Add
+              </button>
+            )}
+            {!isArchive && onExport && (
+              <button
+                onClick={onExport}
+                aria-label="Export library"
+                title="Export library"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "4px",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  padding: "3px 6px",
+                }}
+              >
+                ↓
+              </button>
+            )}
+            {!isArchive && onImport && (
+              <button
+                onClick={onImport}
+                aria-label="Import library"
+                title="Import library"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "4px",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  padding: "3px 6px",
+                }}
+              >
+                ↑
               </button>
             )}
             <button

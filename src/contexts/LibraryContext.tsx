@@ -16,6 +16,7 @@ import type {
   PlaylistChannel,
 } from "@/types/library";
 import { STORAGE_KEY, DEFAULT_SETTINGS } from "@/lib/constants";
+import { exportLibrary as exportLibraryFile } from "@/lib/exportImport";
 
 const DEFAULT_LIBRARY: LibraryData = {
   items: [],
@@ -66,6 +67,8 @@ type LibraryContextValue = {
   updateVideoPosition: (id: string, position: number, duration: number) => void;
   filteredItems: (tag: string | null) => LibraryItem[];
   allTags: () => string[];
+  exportLibrary: () => void;
+  importLibrary: (data: LibraryData, mode: "replace" | "merge") => void;
 };
 
 
@@ -253,6 +256,50 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [update]
   );
 
+  const exportLibrary = useCallback(() => {
+    exportLibraryFile(state.library);
+  }, [state.library]);
+
+  const importLibrary = useCallback(
+    (data: LibraryData, mode: "replace" | "merge") => {
+      if (mode === "replace") {
+        writeStorage(data);
+        setState((prev) => ({ ...prev, library: data }));
+      } else {
+        update((prev) => {
+          const existingIds = new Set(
+            prev.items.map((i) =>
+              i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
+            )
+          );
+          const existingArchivedIds = new Set(
+            prev.archivedItems.map((i) =>
+              i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
+            )
+          );
+          const newItems = data.items.filter((i) => {
+            const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
+            return !existingIds.has(id) && !existingArchivedIds.has(id);
+          });
+          const newArchivedItems = data.archivedItems.filter((i) => {
+            const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
+            return !existingIds.has(id) && !existingArchivedIds.has(id);
+          });
+          const mergedCustomTags = Array.from(
+            new Set([...prev.customTags, ...data.customTags])
+          );
+          return {
+            ...prev,
+            items: [...prev.items, ...newItems],
+            archivedItems: [...prev.archivedItems, ...newArchivedItems],
+            customTags: mergedCustomTags,
+          };
+        });
+      }
+    },
+    [update]
+  );
+
   const filteredItems = useCallback(
     (tag: string | null): LibraryItem[] => {
       if (!tag || tag === "all") return library.items;
@@ -287,6 +334,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         updateVideoPosition,
         filteredItems,
         allTags,
+        exportLibrary,
+        importLibrary,
       }}
     >
       {children}
