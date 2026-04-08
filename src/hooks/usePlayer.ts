@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLibrary } from "@/contexts/LibraryContext";
-import type { LibraryItem, VideoItem, PlaylistChannel } from "@/types/library";
+import type { LibraryItem, VideoItem, PlaylistChannel, LoopMode } from "@/types/library";
 
 declare global {
   interface Window {
@@ -47,9 +47,10 @@ export function getItemId(item: LibraryItem): string {
 export function usePlayer(
   queue: LibraryItem[],
   onAutoAdvance?: (item: LibraryItem) => void,
-  initialMode: PlayerMode = "watch"
+  initialMode: PlayerMode = "watch",
+  initialLoopMode: LoopMode = "off"
 ) {
-  const { updateVideoPosition } = useLibrary();
+  const { updateVideoPosition, updateSettings } = useLibrary();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,6 +61,8 @@ export function usePlayer(
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0–1
   const [mode, setMode] = useState<PlayerMode>(initialMode);
+  const [loopMode, setLoopMode] = useState<LoopMode>(initialLoopMode);
+  const loopModeRef = useRef<LoopMode>(initialLoopMode);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSaveTimeRef = useRef<number>(0);
   const queueRef = useRef(queue);
@@ -68,21 +71,57 @@ export function usePlayer(
     queueRef.current = queue;
   }, [queue]);
 
-  const advanceQueue = useCallback(() => {
+  // Keep loopModeRef in sync with state (avoids stale closure in onStateChange)
+  useEffect(() => {
+    loopModeRef.current = loopMode;
+  }, [loopMode]);
+
+  const handleEnded = useCallback(() => {
     const current = currentItemRef.current;
     if (!current) return;
 
-    // Before advancing, mark current as finished
-    if (current.type === "video") {
-      updateVideoPosition((current as VideoItem).ytId, 0, 1); // 0 position, 1 duration -> effectively resets it
+    const loop = loopModeRef.current;
+
+    // playlist-channel: always advance regardless of loop mode
+    if (current.type !== "video") {
+      const currentId = getItemId(current);
+      const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
+      const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
+      if (next) {
+        setCurrentItem(next);
+        onAutoAdvance?.(next);
+      }
+      return;
     }
+
+    // loop-one: restart current video without saving position
+    if (loop === "one") {
+      playerRef.current?.loadVideoById({
+        videoId: (current as VideoItem).ytId,
+        startSeconds: 0,
+      });
+      return;
+    }
+
+    // Mark current as finished before advancing
+    updateVideoPosition((current as VideoItem).ytId, 0, 1);
 
     const currentId = getItemId(current);
     const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
-    const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
-    if (next) {
+
+    if (loop === "all" && queueRef.current.length > 0) {
+      // Wrap around to first item
+      const nextIdx = (idx + 1) % queueRef.current.length;
+      const next = queueRef.current[nextIdx];
       setCurrentItem(next);
       onAutoAdvance?.(next);
+    } else {
+      // off: advance or stop
+      const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
+      if (next) {
+        setCurrentItem(next);
+        onAutoAdvance?.(next);
+      }
     }
   }, [onAutoAdvance, updateVideoPosition]);
 
@@ -114,12 +153,12 @@ export function usePlayer(
           setPlaying(state === window.YT.PlayerState.PLAYING);
 
           if (state === window.YT.PlayerState.ENDED) {
-            advanceQueue();
+            handleEnded();
           }
         },
       },
     });
-  }, [advanceQueue]);
+  }, [handleEnded]);
 
   const saveCurrentProgress = useCallback(() => {
     const p = playerRef.current;
@@ -222,16 +261,36 @@ export function usePlayer(
   }, []);
 
   const skipNext = useCallback(() => {
-    if (currentItem?.type === "video") {
-      advanceQueue();
-    } else {
+    if (currentItem?.type !== "video") {
       playerRef.current?.nextVideo();
+      return;
     }
-  }, [currentItem, advanceQueue]);
+    // Skip always advances — never restarts (loop-one only applies on natural ENDED)
+    updateVideoPosition((currentItem as VideoItem).ytId, 0, 1);
+    const currentId = getItemId(currentItem);
+    const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
+    const loop = loopModeRef.current;
+    if (loop === "all" && queueRef.current.length > 0) {
+      const next = queueRef.current[(idx + 1) % queueRef.current.length];
+      setCurrentItem(next);
+      onAutoAdvance?.(next);
+    } else {
+      const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
+      if (next) { setCurrentItem(next); onAutoAdvance?.(next); }
+    }
+  }, [currentItem, onAutoAdvance, updateVideoPosition]);
 
   const toggleMode = useCallback(() => {
     setMode((m) => (m === "watch" ? "listen" : "watch"));
   }, []);
+
+  const toggleLoop = useCallback(() => {
+    setLoopMode((prev) => {
+      const next: LoopMode = prev === "off" ? "one" : prev === "one" ? "all" : "off";
+      updateSettings({ loopMode: next });
+      return next;
+    });
+  }, [updateSettings]);
 
   return {
     containerRef,
@@ -239,12 +298,14 @@ export function usePlayer(
     playing,
     progress,
     mode,
+    loopMode,
     play,
     pause,
     resume,
     seek,
     skipNext,
     toggleMode,
+    toggleLoop,
     initPlayer,
   };
 }

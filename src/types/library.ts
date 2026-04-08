@@ -22,11 +22,14 @@ export type PlaylistChannel = {
 
 export type LibraryItem = VideoItem | PlaylistChannel;
 
+export type LoopMode = "off" | "one" | "all";
+
 export type LibrarySettings = {
   theme: "dark" | "light";
   libraryCollapsed: boolean;
   listenMode: boolean;
   sortOrder: "addedAt_desc";
+  loopMode: LoopMode;
 };
 
 export type LibraryData = {

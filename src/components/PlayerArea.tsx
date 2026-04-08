@@ -22,14 +22,16 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
     playing,
     progress,
     mode,
+    loopMode,
     play,
     pause,
     resume,
     seek,
     skipNext,
     toggleMode,
+    toggleLoop,
     initPlayer,
-  } = usePlayer(items, onItemEnd, settings.listenMode ? "listen" : "watch");
+  } = usePlayer(items, onItemEnd, settings.listenMode ? "listen" : "watch", settings.loopMode);
 
   // Sync external currentItem into player — guard against re-firing during auto-advance
   useEffect(() => {
@@ -212,6 +214,15 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
               </ControlBtn>
               <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
               <ControlBtn
+                onClick={toggleLoop}
+                label={loopMode === "off" ? "Loop off" : loopMode === "one" ? "Loop one" : "Loop all"}
+                active={loopMode !== "off"}
+                isMobile={isMobile}
+                dim={loopMode === "off"}
+              >
+                {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+              </ControlBtn>
+              <ControlBtn
                 onClick={handleToggleMode}
                 label={isListen ? "Watch" : "Listen"}
                 active={isListen}
@@ -278,6 +289,15 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
                 {playing ? "⏸" : "▶"}
               </ControlBtn>
               <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
+              <ControlBtn
+                onClick={toggleLoop}
+                label={loopMode === "off" ? "Loop off" : loopMode === "one" ? "Loop one" : "Loop all"}
+                active={loopMode !== "off"}
+                isMobile={isMobile}
+                dim={loopMode === "off"}
+              >
+                {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+              </ControlBtn>
               <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile={isMobile}>👁</ControlBtn>
             </div>
           </div>
@@ -292,12 +312,14 @@ function ControlBtn({
   onClick,
   label,
   active,
+  dim,
   isMobile,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   label: string;
   active?: boolean;
+  dim?: boolean;
   isMobile?: boolean;
 }) {
   return (
@@ -311,18 +333,20 @@ function ControlBtn({
         color: active ? "var(--violet-soft)" : "var(--text-muted)",
         cursor: "pointer",
         fontSize: isMobile ? "18px" : "14px",
+        opacity: dim ? 0.35 : 1,
         padding: isMobile ? "12px 16px" : "4px 8px",
-        transition: "color 0.15s",
+        transition: "color 0.15s, opacity 0.15s",
         minWidth: isMobile ? "44px" : undefined,
         minHeight: isMobile ? "44px" : undefined,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       }}
-      onMouseEnter={isMobile ? undefined : (e) => (e.currentTarget.style.color = "var(--text)")}
-      onMouseLeave={isMobile ? undefined : (e) =>
-        (e.currentTarget.style.color = active ? "var(--violet-soft)" : "var(--text-muted)")
-      }
+      onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.opacity = "1"; }}
+      onMouseLeave={isMobile ? undefined : (e) => {
+        e.currentTarget.style.color = active ? "var(--violet-soft)" : "var(--text-muted)";
+        e.currentTarget.style.opacity = dim ? "0.35" : "1";
+      }}
     >
       {children}
     </button>

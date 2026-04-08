@@ -20,4 +20,5 @@ export const DEFAULT_SETTINGS = {
   libraryCollapsed: false,
   listenMode: false,
   sortOrder: "addedAt_desc" as const,
+  loopMode: "off" as const,
 };
