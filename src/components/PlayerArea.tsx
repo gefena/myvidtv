@@ -218,7 +218,6 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
                 label={loopMode === "off" ? "Loop off" : loopMode === "one" ? "Loop one" : "Loop all"}
                 active={loopMode !== "off"}
                 isMobile={isMobile}
-                dim={loopMode === "off"}
               >
                 {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
               </ControlBtn>
@@ -294,7 +293,6 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
                 label={loopMode === "off" ? "Loop off" : loopMode === "one" ? "Loop one" : "Loop all"}
                 active={loopMode !== "off"}
                 isMobile={isMobile}
-                dim={loopMode === "off"}
               >
                 {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
               </ControlBtn>
