@@ -60,7 +60,7 @@ export function importLibrary(file: File): Promise<LibraryData> {
           .map((t: string) => t.trim().toLowerCase().slice(0, 32));
         const data: LibraryData = {
           items: sanitizeItems(parsed.items ?? []) as LibraryData["items"],
-          archivedItems: sanitizeItems(parsed.archivedItems ?? []) as LibraryData["archivedItems"],
+          archivedItems: sanitizeItems(Array.isArray(parsed.archivedItems) ? parsed.archivedItems : []) as LibraryData["archivedItems"],
           customTags: sanitizedTags,
           settings: parsed.settings ?? {},
         };

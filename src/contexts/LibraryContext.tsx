@@ -41,11 +41,12 @@ function readStorage(): LibraryData {
   }
 }
 
-function writeStorage(data: LibraryData): void {
+function writeStorage(data: LibraryData): boolean {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return true;
   } catch {
-    // localStorage full or unavailable — silently fail
+    return false;
   }
 }
 
@@ -67,7 +68,7 @@ type LibraryContextValue = {
   filteredItems: (tag: string | null) => LibraryItem[];
   allTags: () => string[];
   exportLibrary: () => void;
-  importLibrary: (data: LibraryData, mode: "replace" | "merge") => void;
+  importLibrary: (data: LibraryData, mode: "replace" | "merge") => boolean;
 };
 
 
@@ -260,12 +261,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [state.library]);
 
   const importLibrary = useCallback(
-    (data: LibraryData, mode: "replace" | "merge") => {
+    (data: LibraryData, mode: "replace" | "merge"): boolean => {
       if (mode === "replace") {
         const safe = { ...data, settings: { ...DEFAULT_SETTINGS, ...data.settings } };
-        writeStorage(safe);
+        const ok = writeStorage(safe);
         setState((prev) => ({ ...prev, library: safe }));
+        return ok;
       } else {
+        let saved = true;
         update((prev) => {
           const existingIds = new Set(
             prev.items.map((i) =>
@@ -288,13 +291,16 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           const mergedCustomTags = Array.from(
             new Set([...prev.customTags, ...data.customTags])
           );
-          return {
+          const next = {
             ...prev,
             items: [...prev.items, ...newItems],
             archivedItems: [...prev.archivedItems, ...newArchivedItems],
             customTags: mergedCustomTags,
           };
+          saved = writeStorage(next);
+          return next;
         });
+        return saved;
       }
     },
     [update]

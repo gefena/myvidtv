@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useLibrary } from "@/hooks/useLibrary";
 import type { LibraryData } from "@/types/library";
 
@@ -21,16 +22,27 @@ export function ImportConfirm({
   onRetry,
 }: ImportConfirmProps) {
   const { importLibrary } = useLibrary();
+  const [storageWarning, setStorageWarning] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onDismiss();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onDismiss]);
 
   const handleReplace = () => {
     if (!data) return;
-    importLibrary(data, "replace");
+    const ok = importLibrary(data, "replace");
+    if (!ok) { setStorageWarning(true); return; }
     onReplace();
   };
 
   const handleMerge = () => {
     if (!data) return;
-    importLibrary(data, "merge");
+    const ok = importLibrary(data, "merge");
+    if (!ok) { setStorageWarning(true); return; }
     onMerge();
   };
 
@@ -59,7 +71,31 @@ export function ImportConfirm({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {error ? (
+        {storageWarning ? (
+          <>
+            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", marginBottom: "8px" }}>
+              Import loaded, but not saved
+            </div>
+            <div style={{ fontSize: "13px", color: "#f87171", marginBottom: "20px" }}>
+              Your storage may be full. The import was applied in memory but could not be persisted. Try freeing space or clearing old data.
+            </div>
+            <button
+              onClick={onDismiss}
+              style={{
+                width: "100%",
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                borderRadius: "6px",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: "13px",
+                padding: "8px 12px",
+              }}
+            >
+              OK
+            </button>
+          </>
+        ) : error ? (
           <>
             <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", marginBottom: "8px" }}>
               Import failed

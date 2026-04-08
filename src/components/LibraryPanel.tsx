@@ -229,11 +229,7 @@ export function LibraryPanel({
                   onSelect={() => !isArchive && onSelect(item)}
                   onArchive={() => archiveItem(id)}
                   onRestore={() => restoreItem(id)}
-                  onDelete={() => {
-                    if (confirm("Permanently delete this item?")) {
-                      permanentlyDeleteItem(id);
-                    }
-                  }}
+                  onDelete={() => permanentlyDeleteItem(id)}
                 />
               </motion.div>
             );
@@ -272,6 +268,7 @@ function LibraryCard({
   const { customTags, updateItem, addCustomTag } = useLibrary();
   const [editing, setEditing] = useState(false);
   const [editTags, setEditTags] = useState<string[]>(item.tags);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const itemId = item.type === "video" ? (item as VideoItem).ytId : (item as PlaylistChannel).ytPlaylistId;
 
@@ -412,24 +409,64 @@ function LibraryCard({
         <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
           {isArchive ? (
             <>
-              <button
-                onClick={(e) => { e.stopPropagation(); onRestore(); }}
-                aria-label="Restore"
-                style={actionBtnStyle("var(--violet-soft)")}
-                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
-              >
-                ↺
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                aria-label="Permanently Delete"
-                style={actionBtnStyle("#f87171")}
-                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
-              >
-                🗑
-              </button>
+              {confirmingDelete ? (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                    aria-label="Confirm delete"
+                    style={{
+                      background: "#f87171",
+                      border: "none",
+                      borderRadius: "4px",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      padding: "3px 8px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmingDelete(false); }}
+                    aria-label="Cancel delete"
+                    style={{
+                      background: "none",
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                      padding: "3px 8px",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    No
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRestore(); }}
+                    aria-label="Restore"
+                    style={actionBtnStyle("var(--violet-soft)")}
+                    onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
+                    onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                  >
+                    ↺
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
+                    aria-label="Permanently Delete"
+                    style={actionBtnStyle("#f87171")}
+                    onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
+                    onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                  >
+                    🗑
+                  </button>
+                </>
+              )}
             </>
           ) : editing ? (
             <>
