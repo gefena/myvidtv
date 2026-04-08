@@ -236,7 +236,11 @@ export function AppShell() {
                         </button>
                       )}
                       <button
-                        onClick={() => setLibraryView(libraryView === "archive" ? "library" : "archive")}
+                        onClick={() => {
+                          const next = libraryView === "archive" ? "library" : "archive";
+                          setLibraryView(next);
+                          if (next === "library") setShowArchive(false);
+                        }}
                         style={{
                           background: libraryView === "archive" ? "var(--violet-glow)" : "none",
                           border: "1px solid var(--border)",

@@ -60,7 +60,6 @@ type LibraryContextValue = {
   archiveItem: (id: string) => void;
   restoreItem: (id: string) => void;
   permanentlyDeleteItem: (id: string) => void;
-  removeItem: (id: string) => void;
   addCustomTag: (tag: string) => void;
   updateItem: (id: string, patch: Partial<Pick<LibraryItem, "tags">>) => void;
   updateSettings: (patch: Partial<LibrarySettings>) => void;
@@ -328,7 +327,6 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         archiveItem,
         restoreItem,
         permanentlyDeleteItem,
-        removeItem: archiveItem, // Backward compat
         addCustomTag,
         updateItem,
         updateSettings,

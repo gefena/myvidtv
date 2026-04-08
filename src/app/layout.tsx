@@ -37,7 +37,7 @@ const themeInitScript = `
 (function() {
   try {
     var data = JSON.parse(localStorage.getItem('myvidtv_library') || '{}');
-    var theme = data.settings && data.settings.theme ? data.settings.theme : 'dark';
+    var theme = data.settings && data.settings.theme === 'light' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');

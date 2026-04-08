@@ -10,7 +10,7 @@ export function exportLibrary(data: LibraryData): void {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 const ALLOWED_THUMBNAIL_HOSTS = ["i.ytimg.com", "img.youtube.com"];
@@ -54,10 +54,14 @@ export function importLibrary(file: File): Promise<LibraryData> {
             const i = item as Record<string, unknown>;
             return { ...i, thumbnail: sanitizeThumbnail(i.thumbnail) };
           });
+        const rawTags = Array.isArray(parsed.customTags) ? parsed.customTags : [];
+        const sanitizedTags = rawTags
+          .filter((t: unknown) => typeof t === "string" && t.trim().length > 0)
+          .map((t: string) => t.trim().toLowerCase().slice(0, 32));
         const data: LibraryData = {
           items: sanitizeItems(parsed.items ?? []) as LibraryData["items"],
           archivedItems: sanitizeItems(parsed.archivedItems ?? []) as LibraryData["archivedItems"],
-          customTags: parsed.customTags ?? [],
+          customTags: sanitizedTags,
           settings: parsed.settings ?? {},
         };
         resolve(data);
