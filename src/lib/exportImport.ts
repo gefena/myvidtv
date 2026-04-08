@@ -13,7 +13,27 @@ export function exportLibrary(data: LibraryData): void {
   URL.revokeObjectURL(url);
 }
 
+const ALLOWED_THUMBNAIL_HOSTS = ["i.ytimg.com", "img.youtube.com"];
+
+function sanitizeThumbnail(url: unknown): string {
+  if (typeof url !== "string") return "";
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== "https:") return "";
+    if (!ALLOWED_THUMBNAIL_HOSTS.includes(hostname)) return "";
+    return url;
+  } catch {
+    return "";
+  }
+}
+
 export function importLibrary(file: File): Promise<LibraryData> {
+  if (file.size > 5 * 1024 * 1024) {
+    return Promise.reject(
+      new Error("File is too large. MyVidTV exports are typically under 1 MB.")
+    );
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -28,9 +48,15 @@ export function importLibrary(file: File): Promise<LibraryData> {
           reject(new Error("Not a valid MyVidTV export — missing items array."));
           return;
         }
+        const sanitizeItems = (items: unknown[]) =>
+          items.map((item: unknown) => {
+            if (!item || typeof item !== "object") return item;
+            const i = item as Record<string, unknown>;
+            return { ...i, thumbnail: sanitizeThumbnail(i.thumbnail) };
+          });
         const data: LibraryData = {
-          items: parsed.items ?? [],
-          archivedItems: parsed.archivedItems ?? [],
+          items: sanitizeItems(parsed.items ?? []) as LibraryData["items"],
+          archivedItems: sanitizeItems(parsed.archivedItems ?? []) as LibraryData["archivedItems"],
           customTags: parsed.customTags ?? [],
           settings: parsed.settings ?? {},
         };

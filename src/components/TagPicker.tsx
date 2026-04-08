@@ -24,7 +24,7 @@ export function TagPicker({ selected, customTags, onChange }: TagPickerProps) {
   };
 
   const addCustom = () => {
-    const tag = input.trim().toLowerCase();
+    const tag = input.trim().toLowerCase().slice(0, 32);
     if (!tag || selected.includes(tag)) return;
     onChange([...selected, tag]);
     setInput("");

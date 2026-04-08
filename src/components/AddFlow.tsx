@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
+import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { VideoMeta } from "@/types/library";
 
 type Step =
@@ -53,7 +54,11 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
 
   const handleTagsChange = (newTags: string[]) => {
     setTags(newTags);
-    newTags.forEach((t) => addCustomTag(t));
+    newTags.forEach((t) => {
+      if (!PREDEFINED_TAGS.includes(t as (typeof PREDEFINED_TAGS)[number])) {
+        addCustomTag(t);
+      }
+    });
   };
 
   const handleVideoSave = (meta: VideoMeta) => {

@@ -263,8 +263,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const importLibrary = useCallback(
     (data: LibraryData, mode: "replace" | "merge") => {
       if (mode === "replace") {
-        writeStorage(data);
-        setState((prev) => ({ ...prev, library: data }));
+        const safe = { ...data, settings: { ...DEFAULT_SETTINGS, ...data.settings } };
+        writeStorage(safe);
+        setState((prev) => ({ ...prev, library: safe }));
       } else {
         update((prev) => {
           const existingIds = new Set(
