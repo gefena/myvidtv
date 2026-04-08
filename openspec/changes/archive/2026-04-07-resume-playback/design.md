@@ -12,7 +12,7 @@ Users currently lose their playback position when switching videos or reloading 
 - Playback resume for `PlaylistChannel` items.
 - Multiple resume points (bookmarks) per video.
 - Visual progress bar on library thumbnails (the YouTube player already shows its own bar).
-- Syncing resume points between devices (MyTV is local-only).
+- Syncing resume points between devices (MyVidTV is local-only).
 
 ## Decisions
 

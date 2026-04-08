@@ -1,6 +1,6 @@
 ## Why
 
-The browser tab currently shows the default Next.js favicon, which looks generic and breaks the cinematic MyTV identity. A custom icon makes the app recognizable when multiple tabs are open and creates a polished first impression.
+The browser tab currently shows the default Next.js favicon, which looks generic and breaks the cinematic MyVidTV identity. A custom icon makes the app recognizable when multiple tabs are open and creates a polished first impression.
 
 ## What Changes
 
@@ -12,7 +12,7 @@ The browser tab currently shows the default Next.js favicon, which looks generic
 
 ### New Capabilities
 
-- `favicon`: Browser tab icon and Apple touch icon representing the MyTV brand
+- `favicon`: Browser tab icon and Apple touch icon representing the MyVidTV brand
 
 ### Modified Capabilities
 

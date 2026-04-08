@@ -1,11 +1,11 @@
 ## Context
 
-MyTV has a default Next.js `favicon.ico` in `src/app/`. Next.js App Router automatically serves any `icon.svg`, `icon.png`, or `apple-icon.png` placed in the `app/` directory as the browser tab icon and Apple touch icon respectively — no `<link>` tags required. The icon needs to be legible at 16×16px (browser tab) and look good at 180×180px (iOS bookmark).
+MyVidTV has a default Next.js `favicon.ico` in `src/app/`. Next.js App Router automatically serves any `icon.svg`, `icon.png`, or `apple-icon.png` placed in the `app/` directory as the browser tab icon and Apple touch icon respectively — no `<link>` tags required. The icon needs to be legible at 16×16px (browser tab) and look good at 180×180px (iOS bookmark).
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Replace the default favicon with a branded MyTV icon
+- Replace the default favicon with a branded MyVidTV icon
 - Cover the browser tab (SVG) and iOS bookmark (PNG) cases
 - Keep the implementation fully self-contained — no external icon fonts or services
 

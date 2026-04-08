@@ -30,7 +30,7 @@ export function Header({ onAdd }: HeaderProps) {
             textTransform: "uppercase",
           }}
         >
-          My TV
+          MyVidTV
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>

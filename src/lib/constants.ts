@@ -1,4 +1,4 @@
-export const STORAGE_KEY = "mytv_library";
+export const STORAGE_KEY = "myvidtv_library";
 
 export const PREDEFINED_TAGS = [
   "music",

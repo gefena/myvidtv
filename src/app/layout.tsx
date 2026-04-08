@@ -9,19 +9,19 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "MyTV — Your Personal TV",
+  title: "MyVidTV — Your Personal TV",
   description: "A dark, cinematic personal TV experience for your curated YouTube content. No account required — your library lives on your device.",
-  metadataBase: new URL("https://mytv-black-mu.vercel.app"),
+  metadataBase: new URL("https://myvidtv.vercel.app"),
   openGraph: {
-    title: "MyTV — Your Personal TV",
+    title: "MyVidTV — Your Personal TV",
     description: "A dark, cinematic personal TV experience for your curated YouTube content. No account required — your library lives on your device.",
-    url: "https://mytv-black-mu.vercel.app",
-    siteName: "MyTV",
+    url: "https://myvidtv.vercel.app",
+    siteName: "MyVidTV",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "MyTV — Your Personal TV",
+    title: "MyVidTV — Your Personal TV",
     description: "A dark, cinematic personal TV experience for your curated YouTube content. No account required.",
   },
   robots: {
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 const themeInitScript = `
 (function() {
   try {
-    var data = JSON.parse(localStorage.getItem('mytv_library') || '{}');
+    var data = JSON.parse(localStorage.getItem('myvidtv_library') || '{}');
     var theme = data.settings && data.settings.theme ? data.settings.theme : 'dark';
     document.documentElement.setAttribute('data-theme', theme);
   } catch (e) {

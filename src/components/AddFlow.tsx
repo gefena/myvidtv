@@ -147,7 +147,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
           }}
         >
           <span style={{ fontWeight: 600, fontSize: "15px", color: "var(--text)" }}>
-            Add to My TV
+            Add to MyVidTV
           </span>
           <button
             onClick={onClose}
@@ -274,7 +274,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                   width: "100%",
                 }}
               >
-                Save to My TV
+                Save to MyVidTV
               </button>
             </>
           )}

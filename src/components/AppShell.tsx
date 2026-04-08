@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -26,19 +26,20 @@ export function AppShell() {
     setCurrentItem(next);
   }, []);
 
-  // On mobile, pre-expand library sheet when nothing is playing
-  useEffect(() => {
-    if (isMobile && !currentItem) {
-      setLibrarySheetOpen(true);
-    }
-  }, [isMobile, currentItem]);
+  // Track values to detect changes and adjust state during render
+  // to avoid cascading renders (react-hooks/set-state-in-effect)
+  const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
+  const [prevCurrentItem, setPrevCurrentItem] = useState(currentItem);
+  const [prevListenMode, setPrevListenMode] = useState(settings.listenMode);
 
-  // On mobile, auto-open library sheet when switching to listen mode
-  useEffect(() => {
-    if (isMobile && settings.listenMode) {
+  if (isMobile !== prevIsMobile || currentItem !== prevCurrentItem || settings.listenMode !== prevListenMode) {
+    setPrevIsMobile(isMobile);
+    setPrevCurrentItem(currentItem);
+    setPrevListenMode(settings.listenMode);
+    if (isMobile && (!currentItem || settings.listenMode)) {
       setLibrarySheetOpen(true);
     }
-  }, [isMobile, settings.listenMode]);
+  }
 
   if (!hydrated) return null;
 

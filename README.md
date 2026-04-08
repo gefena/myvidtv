@@ -1,8 +1,8 @@
-# MyTV — Your Personal TV
+# MyVidTV — Your Personal TV
 
 A dark, cinematic personal TV experience for your curated YouTube content. No account required — your library lives on your device.
 
-**Live:** [https://mytv-black-mu.vercel.app](https://mytv-black-mu.vercel.app)
+**Live:** [https://myvidtv.vercel.app](https://myvidtv.vercel.app)
 
 ## Features
 

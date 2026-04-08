@@ -1,6 +1,8 @@
 @AGENTS.md
 
-# MyTV — Personal YouTube TV
+# MyVidTV — Personal YouTube TV
+
+[https://github.com/gefena/myvidtv](https://github.com/gefena/myvidtv)
 
 A personal TV experience for curated YouTube content. Dark cinematic UI, violet accent, no auth.
 
@@ -18,7 +20,7 @@ openspec/        Design artifacts (proposal, design, specs, tasks)
 
 ## Key Architecture Decisions
 
-- **No auth, no database** — all user data lives in `localStorage` under the key `mytv_library`
+- **No auth, no database** — all user data lives in `localStorage` under the key `myvidtv_library`
 - **User = device** — the site is personal to whoever opens it on that device
 - **YouTube IFrame Player API** for playback — never remove the player from the DOM in listen mode (stops audio)
 - **CSS custom properties for ALL colors** — no Tailwind `dark:` classes. Theme is driven by `data-theme` on `<html>`
@@ -45,7 +47,7 @@ music, tech, news, comedy, documentary, sports, education, art, gaming, cooking,
 ## LocalStorage Shape
 
 ```ts
-// Key: "mytv_library"
+// Key: "myvidtv_library"
 type LibraryData = {
   items: (VideoItem | PlaylistChannel)[]
   customTags: string[]
