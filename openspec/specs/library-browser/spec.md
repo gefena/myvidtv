@@ -61,11 +61,15 @@ The system SHALL provide a toggle or navigation link in the library panel to swi
 - **THEN** the library list switches back to show active items
 
 ### Requirement: Add URL accessible from the library panel
-The system SHALL provide a persistent "Add" button in the library panel header that opens the add URL flow.
+On mobile viewports, the system SHALL provide an "Add" button in the library sheet header that opens the add URL flow. On desktop viewports, the Add URL flow SHALL be accessible exclusively from the global Header button; the library panel header SHALL NOT contain a duplicate Add button.
 
-#### Scenario: User clicks Add
-- **WHEN** the user clicks the Add button in the library panel
-- **THEN** a URL input dialog or inline field is presented
+#### Scenario: User clicks Add on mobile
+- **WHEN** the user is on a mobile viewport and opens the library sheet
+- **THEN** an "Add" button is visible in the sheet header and opens the add URL flow
+
+#### Scenario: No duplicate Add on desktop
+- **WHEN** the user is on a desktop viewport with the library panel expanded
+- **THEN** the library panel header does NOT contain an Add button; the only Add button is in the global Header
 
 ### Requirement: Library action buttons always visible on mobile
 On viewports ≤600px wide, the system SHALL display archive, restore, and permanent-delete action buttons on library cards at full opacity and with touch-accessible sizing. The hover-reveal pattern (opacity: 0.3, reveal on mouseEnter) SHALL only apply on non-touch (desktop) viewports.

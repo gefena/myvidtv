@@ -75,22 +75,6 @@ export function LibraryPanel({
             {isArchive ? "Archive" : "Library"}
           </span>
           <div style={{ display: "flex", gap: "6px" }}>
-            {!isArchive && (
-              <button
-                onClick={onAdd}
-                style={{
-                  background: "var(--violet)",
-                  border: "none",
-                  borderRadius: "4px",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  padding: "3px 8px",
-                }}
-              >
-                + Add
-              </button>
-            )}
             {!isArchive && onExport && (
               <button
                 onClick={onExport}
