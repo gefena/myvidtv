@@ -284,7 +284,6 @@ export function AppShell() {
                     onTagChange={setActiveTag}
                     onSelect={handleSelectItem}
                     currentItem={currentItem}
-                    onAdd={() => setAddOpen(true)}
                     onCollapse={() => {}}
                     view={libraryView}
                     onViewChange={setLibraryView}
@@ -329,7 +328,6 @@ export function AppShell() {
                   onTagChange={setActiveTag}
                   onSelect={handleSelectItem}
                   currentItem={currentItem}
-                  onAdd={() => setAddOpen(true)}
                   onCollapse={handleCollapseToggle}
                   onExport={exportLibrary}
                   onImport={handleImportClick}

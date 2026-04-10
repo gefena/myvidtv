@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { usePlayer, getItemId } from "@/hooks/usePlayer";
@@ -215,7 +215,7 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
               <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
               <ControlBtn
                 onClick={toggleLoop}
-                label={loopMode === "off" ? "Loop off" : loopMode === "one" ? "Loop one" : "Loop all"}
+                label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
                 active={loopMode !== "off"}
                 isMobile={isMobile}
               >
@@ -290,7 +290,7 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
               <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
               <ControlBtn
                 onClick={toggleLoop}
-                label={loopMode === "off" ? "Loop off" : loopMode === "one" ? "Loop one" : "Loop all"}
+                label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
                 active={loopMode !== "off"}
                 isMobile={isMobile}
               >
@@ -320,33 +320,62 @@ function ControlBtn({
   dim?: boolean;
   isMobile?: boolean;
 }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+
   return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      style={{
-        background: active ? "var(--violet-glow)" : "none",
-        border: "none",
-        borderRadius: "4px",
-        color: active ? "var(--violet-soft)" : "var(--text-muted)",
-        cursor: "pointer",
-        fontSize: isMobile ? "18px" : "14px",
-        opacity: dim ? 0.35 : 1,
-        padding: isMobile ? "12px 16px" : "4px 8px",
-        transition: "color 0.15s, opacity 0.15s",
-        minWidth: isMobile ? "44px" : undefined,
-        minHeight: isMobile ? "44px" : undefined,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-      onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.opacity = "1"; }}
-      onMouseLeave={isMobile ? undefined : (e) => {
-        e.currentTarget.style.color = active ? "var(--violet-soft)" : "var(--text-muted)";
-        e.currentTarget.style.opacity = dim ? "0.35" : "1";
-      }}
+    <div
+      style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
     >
-      {children}
-    </button>
+      <button
+        onClick={onClick}
+        aria-label={label}
+        style={{
+          background: active ? "var(--violet-glow)" : "none",
+          border: "none",
+          borderRadius: "4px",
+          color: active ? "var(--violet-soft)" : "var(--text-muted)",
+          cursor: "pointer",
+          fontSize: isMobile ? "18px" : "14px",
+          opacity: dim ? 0.35 : 1,
+          padding: isMobile ? "12px 16px" : "4px 8px",
+          transition: "color 0.15s, opacity 0.15s",
+          minWidth: isMobile ? "44px" : undefined,
+          minHeight: isMobile ? "44px" : undefined,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.opacity = "1"; }}
+        onMouseLeave={isMobile ? undefined : (e) => {
+          e.currentTarget.style.color = active ? "var(--violet-soft)" : "var(--text-muted)";
+          e.currentTarget.style.opacity = dim ? "0.35" : "1";
+        }}
+      >
+        {children}
+      </button>
+      {showTooltip && !isMobile && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 6px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--border)",
+            borderRadius: "4px",
+            color: "var(--text-muted)",
+            fontSize: "11px",
+            padding: "3px 7px",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            zIndex: 10,
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
   );
 }

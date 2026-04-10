@@ -13,7 +13,6 @@ type LibraryPanelProps = {
   onTagChange: (tag: string) => void;
   onSelect: (item: LibraryItem) => void;
   currentItem: LibraryItem | null;
-  onAdd: () => void;
   onCollapse: () => void;
   onExport?: () => void;
   onImport?: () => void;
@@ -31,7 +30,6 @@ export function LibraryPanel({
   onTagChange,
   onSelect,
   currentItem,
-  onAdd,
   onCollapse,
   onExport,
   onImport,
@@ -40,6 +38,8 @@ export function LibraryPanel({
   isMobile = false,
 }: LibraryPanelProps) {
   const { archivedItems, filteredItems, allTags, archiveItem, restoreItem, permanentlyDeleteItem } = useLibrary();
+  const [viewTooltip, setViewTooltip] = useState(false);
+  const [collapseTooltip, setCollapseTooltip] = useState(false);
 
   const tags = allTags();
   const displayItems = view === "library"
@@ -111,36 +111,62 @@ export function LibraryPanel({
                 ↑
               </button>
             )}
-            <button
-              onClick={() => onViewChange(isArchive ? "library" : "archive")}
-              aria-label={isArchive ? "Back to library" : "View archive"}
-              style={{
-                background: isArchive ? "var(--violet-glow)" : "none",
-                border: "1px solid var(--border)",
-                borderRadius: "4px",
-                color: isArchive ? "var(--violet-soft)" : "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: "11px",
-                padding: "3px 6px",
-              }}
+            <div
+              style={{ position: "relative", display: "inline-flex" }}
+              onMouseEnter={() => setViewTooltip(true)}
+              onMouseLeave={() => setViewTooltip(false)}
             >
-              {isArchive ? "← Library" : "Archive"}
-            </button>
-            <button
-              onClick={onCollapse}
-              aria-label="Collapse library"
-              style={{
-                background: "none",
-                border: "1px solid var(--border)",
-                borderRadius: "4px",
-                color: "var(--text-muted)",
-                cursor: "pointer",
-                fontSize: "11px",
-                padding: "3px 6px",
-              }}
+              <button
+                onClick={() => onViewChange(isArchive ? "library" : "archive")}
+                aria-label={isArchive ? "Back to library" : "View archive"}
+                style={{
+                  background: isArchive ? "var(--violet-glow)" : "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "4px",
+                  color: isArchive ? "var(--violet-soft)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  padding: "3px 6px",
+                }}
+              >
+                {isArchive ? "← Library" : "Archive"}
+              </button>
+              {viewTooltip && !isMobile && (
+                <div
+                  style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                >
+                  {isArchive ? "Back to library" : "View archive"}
+                </div>
+              )}
+            </div>
+            <div
+              style={{ position: "relative", display: "inline-flex" }}
+              onMouseEnter={() => setCollapseTooltip(true)}
+              onMouseLeave={() => setCollapseTooltip(false)}
             >
-              ◀
-            </button>
+              <button
+                onClick={onCollapse}
+                aria-label="Collapse library"
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "4px",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  padding: "3px 6px",
+                }}
+              >
+                ◀
+              </button>
+              {collapseTooltip && !isMobile && (
+                <div
+                  style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                >
+                  Collapse
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -253,6 +279,11 @@ function LibraryCard({
   const [editing, setEditing] = useState(false);
   const [editTags, setEditTags] = useState<string[]>(item.tags);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const [archiveTooltip, setArchiveTooltip] = useState(false);
+  const [restoreTooltip, setRestoreTooltip] = useState(false);
+  const [deleteTooltip, setDeleteTooltip] = useState(false);
+  const [tagsTooltip, setTagsTooltip] = useState(false);
 
   const itemId = item.type === "video" ? (item as VideoItem).ytId : (item as PlaylistChannel).ytPlaylistId;
 
@@ -431,24 +462,50 @@ function LibraryCard({
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRestore(); }}
-                    aria-label="Restore"
-                    style={actionBtnStyle("var(--violet-soft)")}
-                    onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
-                    onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                  <div
+                    style={{ position: "relative", display: "inline-flex" }}
+                    onMouseEnter={() => setRestoreTooltip(true)}
+                    onMouseLeave={() => setRestoreTooltip(false)}
                   >
-                    ↺
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
-                    aria-label="Permanently Delete"
-                    style={actionBtnStyle("#f87171")}
-                    onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-                    onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRestore(); }}
+                      aria-label="Restore"
+                      style={actionBtnStyle("var(--violet-soft)")}
+                      onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
+                      onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                    >
+                      ↺
+                    </button>
+                    {restoreTooltip && !isMobile && (
+                      <div
+                        style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                      >
+                        Restore
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    style={{ position: "relative", display: "inline-flex" }}
+                    onMouseEnter={() => setDeleteTooltip(true)}
+                    onMouseLeave={() => setDeleteTooltip(false)}
                   >
-                    🗑
-                  </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
+                      aria-label="Permanently Delete"
+                      style={actionBtnStyle("#f87171")}
+                      onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
+                      onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                    >
+                      🗑
+                    </button>
+                    {deleteTooltip && !isMobile && (
+                      <div
+                        style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                      >
+                        Delete
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </>
@@ -489,39 +546,65 @@ function LibraryCard({
             </>
           ) : (
             <>
-              <button
-                onClick={handleEditOpen}
-                aria-label="Edit tags"
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: isMobile ? "var(--text-muted)" : "var(--text-muted)",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  opacity: isMobile ? 0.7 : 0.55,
-                  padding: isMobile ? "8px 10px" : "2px 6px",
-                  transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
-                  lineHeight: 1.4,
-                  minWidth: isMobile ? "44px" : undefined,
-                  minHeight: isMobile ? "44px" : undefined,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              <div
+                style={{ position: "relative", display: "inline-flex" }}
+                onMouseEnter={() => setTagsTooltip(true)}
+                onMouseLeave={() => setTagsTooltip(false)}
               >
-                # Tags
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onArchive(); }}
-                aria-label="Archive item"
-                style={actionBtnStyle("#f87171", 0.7)}
-                onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
-                onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                <button
+                  onClick={handleEditOpen}
+                  aria-label="Edit tags"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: isMobile ? "var(--text-muted)" : "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    opacity: isMobile ? 0.7 : 0.55,
+                    padding: isMobile ? "8px 10px" : "2px 6px",
+                    transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
+                    lineHeight: 1.4,
+                    minWidth: isMobile ? "44px" : undefined,
+                    minHeight: isMobile ? "44px" : undefined,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "var(--violet-soft)"; }}
+                  onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                >
+                  # Tags
+                </button>
+                {tagsTooltip && !isMobile && (
+                  <div
+                    style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                  >
+                    Edit tags
+                  </div>
+                )}
+              </div>
+              <div
+                style={{ position: "relative", display: "inline-flex" }}
+                onMouseEnter={() => setArchiveTooltip(true)}
+                onMouseLeave={() => setArchiveTooltip(false)}
               >
-                ⊟
-              </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onArchive(); }}
+                  aria-label="Archive item"
+                  style={actionBtnStyle("#f87171", 0.7)}
+                  onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.color = "#f87171"; }}
+                  onMouseLeave={isMobile ? undefined : (e) => { e.currentTarget.style.opacity = "0.55"; e.currentTarget.style.color = "var(--text-muted)"; }}
+                >
+                  ⊟
+                </button>
+                {archiveTooltip && !isMobile && (
+                  <div
+                    style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                  >
+                    Archive
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
