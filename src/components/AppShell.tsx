@@ -111,7 +111,11 @@ export function AppShell() {
         /* ── Mobile layout ── */
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
           {/* Player — 16:9 aspect ratio is controlled inside PlayerArea on mobile */}
-          <PlayerArea currentItem={currentItem} onItemEnd={handleItemEnd} />
+          <PlayerArea
+            currentItem={currentItem}
+            onItemEnd={handleItemEnd}
+            onPlaceholderClick={() => setLibrarySheetOpen(true)}
+          />
 
           {/* Spacer / empty area when nothing is playing */}
           <div style={{ flex: 1 }} />
@@ -335,6 +339,7 @@ export function AppShell() {
             <PlayerArea
               currentItem={currentItem}
               onItemEnd={handleItemEnd}
+              onPlaceholderClick={collapsed ? handleCollapseToggle : undefined}
             />
           </div>
 

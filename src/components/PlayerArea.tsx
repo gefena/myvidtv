@@ -10,9 +10,10 @@ import type { LibraryItem, VideoItem } from "@/types/library";
 type PlayerAreaProps = {
   currentItem: LibraryItem | null;
   onItemEnd?: (next: LibraryItem) => void;
+  onPlaceholderClick?: () => void;
 };
 
-export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
+export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: PlayerAreaProps) {
   const { items, updateSettings, settings } = useLibrary();
   const isMobile = useIsMobile();
 
@@ -59,6 +60,25 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
   const isListen = mode === "listen";
   const displayItem = playerCurrentItem ?? currentItem;
 
+  const placeholderInner = (
+    <>
+      <svg
+        width="32"
+        height="32"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ marginBottom: "12px", opacity: 0.35, color: "var(--text-muted)" }}
+      >
+        <rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="8.5" cy="16" r="3.5" fill="#8b5cf6" />
+      </svg>
+      <span style={{ fontSize: "13px", letterSpacing: "0.05em" }}>
+        Select something to watch
+      </span>
+    </>
+  );
+
   return (
     <div
       style={{
@@ -103,20 +123,50 @@ export function PlayerArea({ currentItem, onItemEnd }: PlayerAreaProps) {
 
         {/* Placeholder when nothing is playing */}
         {!displayItem && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--text-muted)",
-              fontSize: "14px",
-              pointerEvents: "none",
-            }}
-          >
-            Select something to watch
-          </div>
+          onPlaceholderClick ? (
+            <button
+              onClick={onPlaceholderClick}
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "none",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+              }}
+              onMouseEnter={isMobile ? undefined : (e) => {
+                const svg = e.currentTarget.querySelector("svg") as SVGElement | null;
+                if (svg) svg.style.opacity = "0.65";
+                e.currentTarget.style.boxShadow = "inset 0 0 60px var(--violet-glow)";
+              }}
+              onMouseLeave={isMobile ? undefined : (e) => {
+                const svg = e.currentTarget.querySelector("svg") as SVGElement | null;
+                if (svg) svg.style.opacity = "0.35";
+                e.currentTarget.style.boxShadow = "";
+              }}
+            >
+              {placeholderInner}
+            </button>
+          ) : (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--text-muted)",
+                pointerEvents: "none",
+              }}
+            >
+              {placeholderInner}
+            </div>
+          )
         )}
       </div>
 
