@@ -49,10 +49,21 @@ export function importLibrary(file: File): Promise<LibraryData> {
           return;
         }
         const sanitizeItems = (items: unknown[]) =>
-          items.map((item: unknown) => {
-            if (!item || typeof item !== "object") return item;
+          items.flatMap((item: unknown) => {
+            if (!item || typeof item !== "object") return [];
             const i = item as Record<string, unknown>;
-            return { ...i, thumbnail: sanitizeThumbnail(i.thumbnail) };
+            if (i.type === "video") {
+              if (typeof i.ytId !== "string" || !i.ytId) return [];
+            } else if (i.type === "playlist-channel") {
+              if (typeof i.ytPlaylistId !== "string" || !i.ytPlaylistId) return [];
+            } else {
+              return [];
+            }
+            return [{
+              ...i,
+              tags: Array.isArray(i.tags) ? i.tags : [],
+              thumbnail: sanitizeThumbnail(i.thumbnail),
+            }];
           });
         const rawTags = Array.isArray(parsed.customTags) ? parsed.customTags : [];
         const sanitizedTags = rawTags

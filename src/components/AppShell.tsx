@@ -358,7 +358,10 @@ export function AppShell() {
                   onExport={exportLibrary}
                   onImport={handleImportClick}
                   view={libraryView}
-                  onViewChange={setLibraryView}
+                  onViewChange={(next) => {
+                    setLibraryView(next);
+                    if (next === "library") setShowArchive(false);
+                  }}
                 />
               </motion.div>
             )}
@@ -380,7 +383,7 @@ export function AppShell() {
                 flexShrink: 0,
               }}
             >
-              ◀
+              ▶
             </button>
           )}
         </div>

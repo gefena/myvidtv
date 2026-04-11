@@ -4,7 +4,7 @@ import {
   createContext,
   useContext,
   useState,
-  useLayoutEffect,
+  useEffect,
   useCallback,
   ReactNode,
 } from "react";
@@ -80,13 +80,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     hydrated: false,
   });
 
-  useLayoutEffect(() => {
-    setTimeout(() => {
-      setState({
-        library: readStorage(),
-        hydrated: true,
-      });
-    }, 0);
+  useEffect(() => {
+    setState({
+      library: readStorage(),
+      hydrated: true,
+    });
   }, []);
 
   const update = useCallback((updater: (prev: LibraryData) => LibraryData) => {
@@ -268,42 +266,40 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         setState((prev) => ({ ...prev, library: safe }));
         return ok;
       } else {
-        let saved = true;
-        update((prev) => {
-          const existingIds = new Set(
-            prev.items.map((i) =>
-              i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
-            )
-          );
-          const existingArchivedIds = new Set(
-            prev.archivedItems.map((i) =>
-              i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
-            )
-          );
-          const newItems = data.items.filter((i) => {
-            const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
-            return !existingIds.has(id) && !existingArchivedIds.has(id);
-          });
-          const newArchivedItems = data.archivedItems.filter((i) => {
-            const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
-            return !existingIds.has(id) && !existingArchivedIds.has(id);
-          });
-          const mergedCustomTags = Array.from(
-            new Set([...prev.customTags, ...data.customTags])
-          );
-          const next = {
-            ...prev,
-            items: [...prev.items, ...newItems],
-            archivedItems: [...prev.archivedItems, ...newArchivedItems],
-            customTags: mergedCustomTags,
-          };
-          saved = writeStorage(next);
-          return next;
+        const prev = state.library;
+        const existingIds = new Set(
+          prev.items.map((i) =>
+            i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
+          )
+        );
+        const existingArchivedIds = new Set(
+          prev.archivedItems.map((i) =>
+            i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
+          )
+        );
+        const newItems = data.items.filter((i) => {
+          const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
+          return !existingIds.has(id) && !existingArchivedIds.has(id);
         });
-        return saved;
+        const newArchivedItems = data.archivedItems.filter((i) => {
+          const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
+          return !existingIds.has(id) && !existingArchivedIds.has(id);
+        });
+        const mergedCustomTags = Array.from(
+          new Set([...prev.customTags, ...data.customTags])
+        );
+        const next: LibraryData = {
+          ...prev,
+          items: [...prev.items, ...newItems],
+          archivedItems: [...prev.archivedItems, ...newArchivedItems],
+          customTags: mergedCustomTags,
+        };
+        const ok = writeStorage(next);
+        setState((s) => ({ ...s, library: next }));
+        return ok;
       }
     },
-    [update]
+    [update, state]
   );
 
   const filteredItems = useCallback(

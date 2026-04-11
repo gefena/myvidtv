@@ -82,11 +82,16 @@ export function usePlayer(
 
     const loop = loopModeRef.current;
 
-    // playlist-channel: always advance regardless of loop mode
+    // playlist-channel: advance with loop-all support (loop-one not applicable)
     if (current.type !== "video") {
       const currentId = getItemId(current);
       const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
-      const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
+      let next: LibraryItem | null;
+      if (loop === "all" && queueRef.current.length > 0) {
+        next = queueRef.current[(idx + 1) % queueRef.current.length];
+      } else {
+        next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
+      }
       if (next) {
         setCurrentItem(next);
         onAutoAdvance?.(next);
@@ -208,7 +213,7 @@ export function usePlayer(
   useEffect(() => {
     const p = playerRef.current;
     if (!p || !currentItem) return;
-    setTimeout(() => setProgress(0), 0);
+    setProgress(0);
     lastSaveTimeRef.current = Date.now();
 
     if (currentItem.type === "video") {

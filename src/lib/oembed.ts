@@ -68,7 +68,8 @@ export function parsePlaylistId(url: string): string | null {
 export function isPlaylistUrl(url: string): boolean {
   try {
     const u = new URL(url.trim());
-    return u.searchParams.has("list") && !u.searchParams.has("v");
+    const hostname = u.hostname.replace(/^www\./, "");
+    return hostname === "youtube.com" && u.searchParams.has("list") && !u.searchParams.has("v");
   } catch {
     return false;
   }
