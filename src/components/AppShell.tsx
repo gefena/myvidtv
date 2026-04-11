@@ -26,6 +26,8 @@ export function AppShell() {
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
   const [pendingImportData, setPendingImportData] = useState<LibraryData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  const [exportTooltip, setExportTooltip] = useState(false);
+  const [importTooltip, setImportTooltip] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleItemEnd = useCallback((next: LibraryItem) => {
@@ -190,50 +192,74 @@ export function AppShell() {
                         </button>
                       )}
                       {libraryView === "library" && (
-                        <button
-                          onClick={exportLibrary}
-                          aria-label="Export library"
-                          title="Export library"
-                          style={{
-                            background: "none",
-                            border: "1px solid var(--border)",
-                            borderRadius: "4px",
-                            color: "var(--text-muted)",
-                            cursor: "pointer",
-                            fontSize: "13px",
-                            padding: "3px 8px",
-                            minWidth: "44px",
-                            minHeight: "44px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
+                        <div
+                          style={{ position: "relative", display: "inline-flex" }}
+                          onMouseEnter={() => setExportTooltip(true)}
+                          onMouseLeave={() => setExportTooltip(false)}
                         >
-                          ↓
-                        </button>
+                          <button
+                            onClick={exportLibrary}
+                            aria-label="Export library"
+                            style={{
+                              background: "none",
+                              border: "1px solid var(--border)",
+                              borderRadius: "4px",
+                              color: "var(--text-muted)",
+                              cursor: "pointer",
+                              fontSize: "13px",
+                              padding: "3px 8px",
+                              minWidth: "44px",
+                              minHeight: "44px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            ↓
+                          </button>
+                          {exportTooltip && !isMobile && (
+                            <div
+                              style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                            >
+                              Export library
+                            </div>
+                          )}
+                        </div>
                       )}
                       {libraryView === "library" && (
-                        <button
-                          onClick={handleImportClick}
-                          aria-label="Import library"
-                          title="Import library"
-                          style={{
-                            background: "none",
-                            border: "1px solid var(--border)",
-                            borderRadius: "4px",
-                            color: "var(--text-muted)",
-                            cursor: "pointer",
-                            fontSize: "13px",
-                            padding: "3px 8px",
-                            minWidth: "44px",
-                            minHeight: "44px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
+                        <div
+                          style={{ position: "relative", display: "inline-flex" }}
+                          onMouseEnter={() => setImportTooltip(true)}
+                          onMouseLeave={() => setImportTooltip(false)}
                         >
-                          ↑
-                        </button>
+                          <button
+                            onClick={handleImportClick}
+                            aria-label="Import library"
+                            style={{
+                              background: "none",
+                              border: "1px solid var(--border)",
+                              borderRadius: "4px",
+                              color: "var(--text-muted)",
+                              cursor: "pointer",
+                              fontSize: "13px",
+                              padding: "3px 8px",
+                              minWidth: "44px",
+                              minHeight: "44px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            ↑
+                          </button>
+                          {importTooltip && !isMobile && (
+                            <div
+                              style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                            >
+                              Import library
+                            </div>
+                          )}
+                        </div>
                       )}
                       <button
                         onClick={() => {

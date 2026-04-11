@@ -40,6 +40,8 @@ export function LibraryPanel({
   const { archivedItems, filteredItems, allTags, archiveItem, restoreItem, permanentlyDeleteItem } = useLibrary();
   const [viewTooltip, setViewTooltip] = useState(false);
   const [collapseTooltip, setCollapseTooltip] = useState(false);
+  const [exportTooltip, setExportTooltip] = useState(false);
+  const [importTooltip, setImportTooltip] = useState(false);
 
   const tags = allTags();
   const displayItems = view === "library"
@@ -76,40 +78,64 @@ export function LibraryPanel({
           </span>
           <div style={{ display: "flex", gap: "6px" }}>
             {!isArchive && onExport && (
-              <button
-                onClick={onExport}
-                aria-label="Export library"
-                title="Export library"
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  borderRadius: "4px",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  padding: "3px 6px",
-                }}
+              <div
+                style={{ position: "relative", display: "inline-flex" }}
+                onMouseEnter={() => setExportTooltip(true)}
+                onMouseLeave={() => setExportTooltip(false)}
               >
-                ↓
-              </button>
+                <button
+                  onClick={onExport}
+                  aria-label="Export library"
+                  style={{
+                    background: "none",
+                    border: "1px solid var(--border)",
+                    borderRadius: "4px",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    padding: "3px 6px",
+                  }}
+                >
+                  ↓
+                </button>
+                {exportTooltip && !isMobile && (
+                  <div
+                    style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                  >
+                    Export library
+                  </div>
+                )}
+              </div>
             )}
             {!isArchive && onImport && (
-              <button
-                onClick={onImport}
-                aria-label="Import library"
-                title="Import library"
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  borderRadius: "4px",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  padding: "3px 6px",
-                }}
+              <div
+                style={{ position: "relative", display: "inline-flex" }}
+                onMouseEnter={() => setImportTooltip(true)}
+                onMouseLeave={() => setImportTooltip(false)}
               >
-                ↑
-              </button>
+                <button
+                  onClick={onImport}
+                  aria-label="Import library"
+                  style={{
+                    background: "none",
+                    border: "1px solid var(--border)",
+                    borderRadius: "4px",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    padding: "3px 6px",
+                  }}
+                >
+                  ↑
+                </button>
+                {importTooltip && !isMobile && (
+                  <div
+                    style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                  >
+                    Import library
+                  </div>
+                )}
+              </div>
             )}
             <div
               style={{ position: "relative", display: "inline-flex" }}
