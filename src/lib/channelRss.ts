@@ -7,6 +7,7 @@ export type ChannelFeedVideo = {
 
 export type ChannelFeed = {
   channelName: string;
+  channelThumbnail: string;
   videos: ChannelFeedVideo[];
 };
 
@@ -17,7 +18,9 @@ export function isChannelUrl(url: string): boolean {
     if (hostname !== "youtube.com") return false;
     return (
       u.pathname.startsWith("/channel/") ||
-      u.pathname.startsWith("/@")
+      u.pathname.startsWith("/@") ||
+      u.pathname.startsWith("/c/") ||
+      u.pathname.startsWith("/user/")
     );
   } catch {
     return false;
@@ -35,10 +38,12 @@ export async function resolveChannelId(url: string): Promise<string> {
     throw new Error("Could not parse channel ID from URL.");
   }
 
-  // @handle: resolve via server-side route
-  const handle = pathname.slice(2); // strip leading "/@"
-  const res = await fetch(`/api/resolve-channel?handle=${encodeURIComponent(handle)}`);
-  if (!res.ok) throw new Error("Could not resolve channel. Try using a youtube.com/channel/UCxxx URL instead.");
+  // @handle, /c/<name>, /user/<name>: resolve via server-side route
+  const path = pathname.slice(1); // strip leading "/"
+  const res = await fetch(`/api/resolve-channel?path=${encodeURIComponent(path)}`);
+  if (res.status === 404) throw new Error("Channel not found. Check the URL and try again.");
+  if (res.status === 422) throw new Error("Could not read channel ID from this URL. Try using youtube.com/channel/UCxxx directly.");
+  if (!res.ok) throw new Error("Could not reach YouTube. Check your connection and try again.");
   const data = await res.json() as { channelId: string };
   return data.channelId;
 }
@@ -65,5 +70,7 @@ export async function fetchChannelFeed(channelId: string): Promise<ChannelFeed> 
     return { ytId, title, thumbnail, publishedAt };
   }).filter((v) => v.ytId);
 
-  return { channelName, videos };
+  const channelThumbnail = videos[0]?.thumbnail ?? "";
+
+  return { channelName, channelThumbnail, videos };
 }

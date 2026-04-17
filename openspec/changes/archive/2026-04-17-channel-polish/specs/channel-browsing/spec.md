@@ -1,9 +1,4 @@
-# channel-browsing Specification
-
-## Purpose
-Defines the capability to save YouTube channels to the library and browse their recent videos via a modal overlay.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Save a YouTube channel to the library
 The system SHALL accept YouTube channel URLs in the AddFlow input and save them as `channel` library items. Supported URL formats are `youtube.com/channel/{channelId}`, `youtube.com/@{handle}`, `youtube.com/c/{name}`, and `youtube.com/user/{name}`. For `@handle`, `/c/`, and `/user/` URLs, the system SHALL resolve the identifier to a stable channel ID by fetching the YouTube page server-side and parsing the channel ID from the RSS `<link>` tag in `<head>`.
@@ -56,18 +51,3 @@ Channel items saved to the library SHALL be displayed as cards visually consiste
 #### Scenario: Channel card rendered without thumbnail
 - **WHEN** the library contains a `channel` item with an empty thumbnail
 - **THEN** a card is rendered with a placeholder background, channel name, tags, and a "Channel" badge
-
-### Requirement: Channel browse modal
-Clicking a channel card SHALL open a modal overlay that fetches and displays the channel's most recent videos via YouTube's public RSS feed (`https://www.youtube.com/feeds/videos.xml?channel_id={channelId}`). The modal SHALL show video title, thumbnail, and published date for each entry. The RSS feed provides approximately 15 most recent videos.
-
-#### Scenario: Browse modal opens and loads videos
-- **WHEN** the user clicks a channel card
-- **THEN** the channel browse modal opens and fetches the RSS feed, displaying the list of recent videos
-
-#### Scenario: Video selected for playback
-- **WHEN** the user clicks a video in the channel browse modal
-- **THEN** the video begins playing in the player and the modal closes; the video is NOT added to the library
-
-#### Scenario: RSS fetch fails
-- **WHEN** the RSS feed cannot be fetched
-- **THEN** the modal displays an error message and offers a retry option

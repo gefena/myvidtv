@@ -14,7 +14,7 @@ type Step =
   | { name: "loading" }
   | { name: "video"; meta: VideoMeta }
   | { name: "playlist-name"; playlistId: string }
-  | { name: "channel-name"; channelId: string; channelName: string }
+  | { name: "channel-name"; channelId: string; channelName: string; channelThumbnail: string }
   | { name: "error"; message: string };
 
 type AddFlowProps = {
@@ -43,7 +43,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
         const channelId = await resolveChannelId(trimmed);
         const feed = await fetchChannelFeed(channelId);
         setChannelName(feed.channelName);
-        setStep({ name: "channel-name", channelId, channelName: feed.channelName });
+        setStep({ name: "channel-name", channelId, channelName: feed.channelName, channelThumbnail: feed.channelThumbnail });
       } catch (err) {
         setStep({ name: "error", message: err instanceof Error ? err.message : "Could not resolve channel." });
       }
@@ -69,7 +69,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
     }
   }, [url]);
 
-  const handleChannelSave = (channelId: string) => {
+  const handleChannelSave = (channelId: string, thumbnail: string) => {
     const name = channelName.trim();
     if (!name) return;
     const inArchive = archivedItems.some((i) => i.type === "channel" && i.channelId === channelId);
@@ -83,7 +83,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       });
       return;
     }
-    addChannel({ channelId, title: name, thumbnail: "", tags });
+    addChannel({ channelId, title: name, thumbnail, tags });
     onClose();
   };
 
@@ -373,7 +373,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
               </div>
 
               <button
-                onClick={() => handleChannelSave(step.channelId)}
+                onClick={() => handleChannelSave(step.channelId, step.channelThumbnail)}
                 disabled={!channelName.trim()}
                 style={{
                   background: channelName.trim() ? "var(--violet)" : "var(--surface-2)",
