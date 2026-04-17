@@ -1,16 +1,9 @@
-# playlist-add-flow Specification
-
-## Purpose
-Defines the flow for adding a YouTube playlist to the library. Playlists are always added as a named channel — there is no option to pick individual videos.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Playlist add flow is name + channel only
 When a playlist URL is detected, the system SHALL prompt the user to enter a name for the playlist, then save it as a playlist-channel. No option to pick individual videos.
 
 A URL is considered a playlist URL only when it is on `youtube.com` (not `youtu.be`), has a `list` query parameter, and has no `v` query parameter. `youtu.be` links that include a `list` parameter (e.g., `youtu.be/ID?list=PLxxx`) SHALL be treated as video links, not playlist links.
-
-The AddFlow input SHALL be evaluated in this priority order: channel URL → playlist URL → video URL. A channel URL SHALL be detected before playlist URL detection is attempted.
 
 #### Scenario: Playlist URL detected
 - **WHEN** the user pastes a YouTube playlist URL (e.g., `youtube.com/playlist?list=PLxxx`)
@@ -28,13 +21,11 @@ The AddFlow input SHALL be evaluated in this priority order: channel URL → pla
 - **WHEN** the user types a name and confirms
 - **THEN** the playlist is saved as a `playlist-channel` item with the user-supplied name
 
-#### Scenario: Channel URL takes priority over playlist detection
-- **WHEN** the user pastes a `youtube.com/channel/UCxxx` or `youtube.com/@handle` URL
-- **THEN** the system treats it as a channel URL and does not attempt playlist detection
+## ADDED Requirements
 
-### Requirement: Tags applied to playlist add flow
-Tags selected during the playlist add flow SHALL be applied to the playlist-channel item being saved.
+### Requirement: Omnibox input for AddFlow
+The `AddFlow` input field SHALL accept both YouTube URLs and text queries. If the input matches a recognized YouTube URL pattern, the system SHALL proceed with metadata fetching; otherwise, it SHALL trigger the search flow.
 
-#### Scenario: Tags applied to playlist-channel
-- **WHEN** the user selects tags and saves a playlist-channel
-- **THEN** the saved playlist-channel item carries those tags
+#### Scenario: Text query triggers search
+- **WHEN** the user enters "lofi beats" into the AddFlow input
+- **THEN** the system identifies it as a search query and initiates the `youtube-search` flow

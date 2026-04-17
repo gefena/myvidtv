@@ -46,7 +46,20 @@ Archive a completed change in the experimental workflow.
 
    **If no tasks file exists:** Proceed without task-related warning.
 
-4. **Assess delta spec sync state**
+4. **Run production build**
+
+   ```bash
+   npm run build
+   ```
+
+   **If build fails:**
+   - Show the error output
+   - Stop and do NOT proceed with archive
+   - Tell the user to fix the build errors first
+
+   **If build passes:** Continue.
+
+6. **Assess delta spec sync state**
 
    Check for delta specs at `openspec/changes/<name>/specs/`. If none exist, proceed without sync prompt.
 
@@ -61,7 +74,7 @@ Archive a completed change in the experimental workflow.
 
    If user chooses sync, use Task tool (subagent_type: "general-purpose", prompt: "Use Skill tool to invoke openspec-sync-specs for change '<name>'. Delta spec analysis: <include the analyzed delta spec summary>"). Proceed to archive regardless of choice.
 
-5. **Perform the archive**
+7. **Perform the archive**
 
    Create the archive directory if it doesn't exist:
    ```bash
@@ -78,7 +91,7 @@ Archive a completed change in the experimental workflow.
    mv openspec/changes/<name> openspec/changes/archive/YYYY-MM-DD-<name>
    ```
 
-6. **Display summary**
+8. **Display summary**
 
    Show archive completion summary including:
    - Change name

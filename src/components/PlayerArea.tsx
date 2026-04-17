@@ -249,7 +249,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: Playe
                 {displayItem.title}
               </div>
               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                {displayItem.channelName}
+                {"channelName" in displayItem ? displayItem.channelName : ""}
               </div>
             </div>
 
@@ -331,7 +331,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: Playe
               <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {displayItem.title}
               </div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.channelName}</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
             </div>
             <div style={{ display: "flex", gap: "6px" }}>
               <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>

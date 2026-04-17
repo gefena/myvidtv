@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { PREDEFINED_TAGS } from "@/lib/constants";
-import type { LibraryItem, VideoItem, PlaylistChannel } from "@/types/library";
+import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem } from "@/types/library";
+import { ChannelBrowseModal } from "./ChannelBrowseModal";
+import type { ChannelFeedVideo } from "@/lib/channelRss";
 
 type LibraryPanelProps = {
   activeTag: string;
@@ -22,7 +24,9 @@ type LibraryPanelProps = {
 };
 
 function itemId(item: LibraryItem) {
-  return item.type === "video" ? item.ytId : item.ytPlaylistId;
+  if (item.type === "video") return item.ytId;
+  if (item.type === "playlist-channel") return item.ytPlaylistId;
+  return item.channelId;
 }
 
 export function LibraryPanel({
@@ -38,6 +42,7 @@ export function LibraryPanel({
   isMobile = false,
 }: LibraryPanelProps) {
   const { archivedItems, filteredItems, allTags, archiveItem, restoreItem, permanentlyDeleteItem } = useLibrary();
+  const [browseChannel, setBrowseChannel] = useState<ChannelItem | null>(null);
   const [viewTooltip, setViewTooltip] = useState(false);
   const [collapseTooltip, setCollapseTooltip] = useState(false);
   const [exportTooltip, setExportTooltip] = useState(false);
@@ -262,7 +267,14 @@ export function LibraryPanel({
                   isActive={isActive}
                   isArchive={isArchive}
                   isMobile={isMobile}
-                  onSelect={() => !isArchive && onSelect(item)}
+                  onSelect={() => {
+                    if (isArchive) return;
+                    if (item.type === "channel") {
+                      setBrowseChannel(item as ChannelItem);
+                    } else {
+                      onSelect(item);
+                    }
+                  }}
                   onArchive={() => archiveItem(id)}
                   onRestore={() => restoreItem(id)}
                   onDelete={() => permanentlyDeleteItem(id)}
@@ -278,6 +290,26 @@ export function LibraryPanel({
           </div>
         )}
       </div>
+
+      {browseChannel && (
+        <ChannelBrowseModal
+          channelId={browseChannel.channelId}
+          channelName={browseChannel.title}
+          onPlay={(video: ChannelFeedVideo) => {
+            const transient: VideoItem = {
+              type: "video",
+              ytId: video.ytId,
+              title: video.title,
+              channelName: browseChannel.title,
+              thumbnail: video.thumbnail,
+              tags: [],
+              addedAt: 0,
+            };
+            onSelect(transient);
+          }}
+          onClose={() => setBrowseChannel(null)}
+        />
+      )}
     </div>
   );
 }
@@ -311,17 +343,19 @@ function LibraryCard({
   const [deleteTooltip, setDeleteTooltip] = useState(false);
   const [tagsTooltip, setTagsTooltip] = useState(false);
 
-  const itemId = item.type === "video" ? (item as VideoItem).ytId : (item as PlaylistChannel).ytPlaylistId;
+  const itemId =
+    item.type === "video" ? (item as VideoItem).ytId :
+    item.type === "playlist-channel" ? (item as PlaylistChannel).ytPlaylistId :
+    (item as ChannelItem).channelId;
 
-  const thumbnail =
-    item.type === "video"
-      ? (item as VideoItem).thumbnail
-      : (item as PlaylistChannel).thumbnail;
+  const thumbnail = item.thumbnail;
   const title = item.title;
   const sub =
     item.type === "video"
       ? (item as VideoItem).channelName
-      : `${(item as PlaylistChannel).videoCount > 0 ? `${(item as PlaylistChannel).videoCount} videos` : "Playlist"}`;
+      : item.type === "playlist-channel"
+      ? `${(item as PlaylistChannel).videoCount > 0 ? `${(item as PlaylistChannel).videoCount} videos` : "Playlist"}`
+      : "Channel";
 
   const handleEditOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -412,6 +446,16 @@ function LibraryCard({
               padding: "1px 4px", borderTopLeftRadius: "3px",
             }}>
               ≡
+            </div>
+          )}
+          {item.type === "channel" && (
+            <div style={{
+              position: "absolute", bottom: 0, right: 0,
+              background: "rgba(124,58,237,0.85)", fontSize: "9px", color: "#fff",
+              padding: "1px 5px", borderTopLeftRadius: "3px", fontWeight: 600,
+              letterSpacing: "0.03em",
+            }}>
+              CH
             </div>
           )}
         </div>

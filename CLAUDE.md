@@ -42,7 +42,7 @@ None required. No API keys needed.
 
 ## Predefined Tags
 
-music, tech, news, comedy, documentary, sports, education, art, gaming, cooking, fitness, talk
+music, tech, news, comedy, documentary, sports, education, art, gaming, cooking, fitness, talk, focus
 
 ## LocalStorage Shape
 
@@ -50,12 +50,14 @@ music, tech, news, comedy, documentary, sports, education, art, gaming, cooking,
 // Key: "myvidtv_library"
 type LibraryData = {
   items: (VideoItem | PlaylistChannel)[]
+  archivedItems: (VideoItem | PlaylistChannel)[]
   customTags: string[]
   settings: {
     theme: "dark" | "light"
     libraryCollapsed: boolean
     listenMode: boolean
     sortOrder: "addedAt_desc"
+    loopMode: "off" | "one" | "all"
   }
 }
 ```

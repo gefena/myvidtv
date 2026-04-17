@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
+import { isChannelUrl, resolveChannelId, fetchChannelFeed } from "@/lib/channelRss";
 import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { VideoMeta } from "@/types/library";
 
@@ -13,6 +14,7 @@ type Step =
   | { name: "loading" }
   | { name: "video"; meta: VideoMeta }
   | { name: "playlist-name"; playlistId: string }
+  | { name: "channel-name"; channelId: string; channelName: string }
   | { name: "error"; message: string };
 
 type AddFlowProps = {
@@ -21,17 +23,32 @@ type AddFlowProps = {
 };
 
 export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
-  const { items, archivedItems, customTags, addVideo, addPlaylistChannel, addCustomTag } = useLibrary();
+  const { items, archivedItems, customTags, addVideo, addPlaylistChannel, addChannel, addCustomTag } = useLibrary();
   const [url, setUrl] = useState(initialUrl);
   const [step, setStep] = useState<Step>({ name: "input" });
   const [tags, setTags] = useState<string[]>([]);
   const [playlistName, setPlaylistName] = useState("");
+  const [channelName, setChannelName] = useState("");
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const handleUrlSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = url.trim();
     if (!trimmed) return;
+
+    // Channel URL — must be checked before playlist (highest priority)
+    if (isChannelUrl(trimmed)) {
+      setStep({ name: "loading" });
+      try {
+        const channelId = await resolveChannelId(trimmed);
+        const feed = await fetchChannelFeed(channelId);
+        setChannelName(feed.channelName);
+        setStep({ name: "channel-name", channelId, channelName: feed.channelName });
+      } catch (err) {
+        setStep({ name: "error", message: err instanceof Error ? err.message : "Could not resolve channel." });
+      }
+      return;
+    }
 
     if (isPlaylistUrl(trimmed)) {
       const id = parsePlaylistId(trimmed);
@@ -51,6 +68,24 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       setStep({ name: "error", message: err instanceof Error ? err.message : "Unknown error" });
     }
   }, [url]);
+
+  const handleChannelSave = (channelId: string) => {
+    const name = channelName.trim();
+    if (!name) return;
+    const inArchive = archivedItems.some((i) => i.type === "channel" && i.channelId === channelId);
+    const inLibrary = items.some((i) => i.type === "channel" && i.channelId === channelId);
+    if (inLibrary || inArchive) {
+      setStep({
+        name: "error",
+        message: inArchive
+          ? "This channel is in your archive. Restore it from the archive to add it back."
+          : "This channel is already in your library.",
+      });
+      return;
+    }
+    addChannel({ channelId, title: name, thumbnail: "", tags });
+    onClose();
+  };
 
   const handleTagsChange = (newTags: string[]) => {
     setTags(newTags);
@@ -288,6 +323,70 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                 }}
               >
                 Save to MyVidTV
+              </button>
+            </>
+          )}
+
+          {/* ── Channel name ── */}
+          {step.name === "channel-name" && (
+            <>
+              <div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>
+                  Channel ID
+                </div>
+                <div style={{ fontSize: "13px", color: "var(--text-muted)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {step.channelId}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Channel name
+                </label>
+                <input
+                  type="text"
+                  value={channelName}
+                  onChange={(e) => setChannelName(e.target.value)}
+                  placeholder="e.g. Kurzgesagt"
+                  autoFocus
+                  style={{
+                    width: "100%",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "6px",
+                    color: "var(--text)",
+                    fontSize: "14px",
+                    outline: "none",
+                    padding: "10px 14px",
+                    boxSizing: "border-box",
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = "var(--violet)")}
+                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                />
+              </div>
+
+              <div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Tags
+                </div>
+                <TagPicker selected={tags} customTags={customTags} onChange={handleTagsChange} />
+              </div>
+
+              <button
+                onClick={() => handleChannelSave(step.channelId)}
+                disabled={!channelName.trim()}
+                style={{
+                  background: channelName.trim() ? "var(--violet)" : "var(--surface-2)",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: channelName.trim() ? "#fff" : "var(--text-muted)",
+                  cursor: channelName.trim() ? "pointer" : "default",
+                  fontWeight: 500,
+                  padding: "10px",
+                  width: "100%",
+                }}
+              >
+                Add Channel
               </button>
             </>
           )}

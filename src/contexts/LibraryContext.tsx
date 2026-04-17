@@ -14,6 +14,7 @@ import type {
   LibrarySettings,
   VideoItem,
   PlaylistChannel,
+  ChannelItem,
 } from "@/types/library";
 import { STORAGE_KEY, DEFAULT_SETTINGS } from "@/lib/constants";
 import { exportLibrary as exportLibraryFile } from "@/lib/exportImport";
@@ -50,6 +51,12 @@ function writeStorage(data: LibraryData): boolean {
   }
 }
 
+function getItemId(item: LibraryItem): string {
+  if (item.type === "video") return item.ytId;
+  if (item.type === "playlist-channel") return item.ytPlaylistId;
+  return item.channelId;
+}
+
 type LibraryContextValue = {
   items: LibraryItem[];
   archivedItems: LibraryItem[];
@@ -58,6 +65,7 @@ type LibraryContextValue = {
   hydrated: boolean;
   addVideo: (video: Omit<VideoItem, "type" | "addedAt">) => void;
   addPlaylistChannel: (playlist: Omit<PlaylistChannel, "type" | "addedAt">) => void;
+  addChannel: (channel: Omit<ChannelItem, "type" | "addedAt">) => void;
   archiveItem: (id: string) => void;
   restoreItem: (id: string) => void;
   permanentlyDeleteItem: (id: string) => void;
@@ -139,22 +147,28 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [update]
   );
 
+  const addChannel = useCallback(
+    (channel: Omit<ChannelItem, "type" | "addedAt">) => {
+      update((prev) => {
+        const exists =
+          prev.items.some((i) => i.type === "channel" && (i as ChannelItem).channelId === channel.channelId) ||
+          prev.archivedItems.some((i) => i.type === "channel" && (i as ChannelItem).channelId === channel.channelId);
+        if (exists) return prev;
+        const newItem: ChannelItem = { type: "channel", ...channel, addedAt: Date.now() };
+        return { ...prev, items: [newItem, ...prev.items] };
+      });
+    },
+    [update]
+  );
+
   const archiveItem = useCallback(
     (id: string) => {
       update((prev) => {
-        const itemToArchive = prev.items.find((item) => {
-          if (item.type === "video") return (item as VideoItem).ytId === id;
-          return (item as PlaylistChannel).ytPlaylistId === id;
-        });
-
+        const itemToArchive = prev.items.find((item) => getItemId(item) === id);
         if (!itemToArchive) return prev;
-
         return {
           ...prev,
-          items: prev.items.filter((item) => {
-            if (item.type === "video") return (item as VideoItem).ytId !== id;
-            return (item as PlaylistChannel).ytPlaylistId !== id;
-          }),
+          items: prev.items.filter((item) => getItemId(item) !== id),
           archivedItems: [itemToArchive, ...prev.archivedItems],
         };
       });
@@ -165,19 +179,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const restoreItem = useCallback(
     (id: string) => {
       update((prev) => {
-        const itemToRestore = prev.archivedItems.find((item) => {
-          if (item.type === "video") return (item as VideoItem).ytId === id;
-          return (item as PlaylistChannel).ytPlaylistId === id;
-        });
-
+        const itemToRestore = prev.archivedItems.find((item) => getItemId(item) === id);
         if (!itemToRestore) return prev;
-
         return {
           ...prev,
-          archivedItems: prev.archivedItems.filter((item) => {
-            if (item.type === "video") return (item as VideoItem).ytId !== id;
-            return (item as PlaylistChannel).ytPlaylistId !== id;
-          }),
+          archivedItems: prev.archivedItems.filter((item) => getItemId(item) !== id),
           items: [itemToRestore, ...prev.items],
         };
       });
@@ -189,10 +195,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       update((prev) => ({
         ...prev,
-        archivedItems: prev.archivedItems.filter((item) => {
-          if (item.type === "video") return (item as VideoItem).ytId !== id;
-          return (item as PlaylistChannel).ytPlaylistId !== id;
-        }),
+        archivedItems: prev.archivedItems.filter((item) => getItemId(item) !== id),
       }));
     },
     [update]
@@ -214,10 +217,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     (id: string, patch: Partial<Pick<LibraryItem, "tags">>) => {
       update((prev) => ({
         ...prev,
-        items: prev.items.map((item) => {
-          const itemId = item.type === "video" ? (item as VideoItem).ytId : (item as PlaylistChannel).ytPlaylistId;
-          return itemId === id ? { ...item, ...patch } : item;
-        }),
+        items: prev.items.map((item) => getItemId(item) === id ? { ...item, ...patch } : item),
       }));
     },
     [update]
@@ -267,22 +267,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return ok;
       } else {
         const prev = state.library;
-        const existingIds = new Set(
-          prev.items.map((i) =>
-            i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
-          )
-        );
-        const existingArchivedIds = new Set(
-          prev.archivedItems.map((i) =>
-            i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId
-          )
-        );
+        const existingIds = new Set(prev.items.map(getItemId));
+        const existingArchivedIds = new Set(prev.archivedItems.map(getItemId));
         const newItems = data.items.filter((i) => {
-          const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
+          const id = getItemId(i);
           return !existingIds.has(id) && !existingArchivedIds.has(id);
         });
         const newArchivedItems = data.archivedItems.filter((i) => {
-          const id = i.type === "video" ? (i as VideoItem).ytId : (i as PlaylistChannel).ytPlaylistId;
+          const id = getItemId(i);
           return !existingIds.has(id) && !existingArchivedIds.has(id);
         });
         const mergedCustomTags = Array.from(
@@ -326,6 +318,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         hydrated,
         addVideo,
         addPlaylistChannel,
+        addChannel,
         archiveItem,
         restoreItem,
         permanentlyDeleteItem,

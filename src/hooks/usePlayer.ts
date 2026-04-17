@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLibrary } from "@/contexts/LibraryContext";
-import type { LibraryItem, VideoItem, PlaylistChannel, LoopMode } from "@/types/library";
+import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem, LoopMode } from "@/types/library";
 
 declare global {
   interface Window {
@@ -39,9 +39,9 @@ type YouTubePlayer = {
 export type PlayerMode = "watch" | "listen";
 
 export function getItemId(item: LibraryItem): string {
-  return item.type === "video"
-    ? (item as VideoItem).ytId
-    : (item as PlaylistChannel).ytPlaylistId;
+  if (item.type === "video") return (item as VideoItem).ytId;
+  if (item.type === "playlist-channel") return (item as PlaylistChannel).ytPlaylistId;
+  return (item as ChannelItem).channelId;
 }
 
 export function usePlayer(
@@ -222,13 +222,14 @@ export function usePlayer(
         videoId: video.ytId,
         startSeconds: video.lastPosition || 0,
       });
-    } else {
+    } else if (currentItem.type === "playlist-channel") {
       p.cuePlaylist({
         list: (currentItem as PlaylistChannel).ytPlaylistId,
         listType: "playlist",
       });
       p.playVideo();
     }
+    // ChannelItem: not directly playable — opened via browse modal
   }, [currentItem]);
 
   const play = useCallback(

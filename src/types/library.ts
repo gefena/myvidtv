@@ -21,7 +21,16 @@ export type PlaylistChannel = {
   addedAt: number;
 };
 
-export type LibraryItem = VideoItem | PlaylistChannel;
+export type ChannelItem = {
+  type: "channel";
+  channelId: string;
+  title: string;
+  thumbnail: string;
+  tags: string[];
+  addedAt: number;
+};
+
+export type LibraryItem = VideoItem | PlaylistChannel | ChannelItem;
 
 export type LoopMode = "off" | "one" | "all";
 
