@@ -44,9 +44,7 @@ export async function resolveChannelId(url: string): Promise<string> {
 }
 
 export async function fetchChannelFeed(channelId: string): Promise<ChannelFeed> {
-  const res = await fetch(
-    `https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`
-  );
+  const res = await fetch(`/api/channel-feed?channelId=${encodeURIComponent(channelId)}`);
   if (!res.ok) throw new Error("Could not fetch channel feed.");
 
   const text = await res.text();
