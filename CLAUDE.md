@@ -69,3 +69,17 @@ npm run dev      # Start dev server
 npm run build    # Production build
 npm run lint     # Lint
 ```
+
+## Testing Before and After Push
+
+**Always before push:**
+- Run `npm run build` — catches TypeScript errors and build failures.
+
+**When API routes changed (`src/app/api/`):**
+- Before push: curl-test each new or modified route locally (`http://localhost:3000/api/...`). Cover the happy path and at least one error case (missing param, bad input).
+- After push: re-run the same curl tests against `https://myvidtv.vercel.app/api/...` once Vercel redeploys. Verify the full end-to-end flow for the feature that was changed.
+
+**When UI changed:**
+- Test the affected flow in the browser at `http://localhost:3000` before pushing. Client-side behavior (rendering, state, interactions) cannot be verified with curl — note this limitation explicitly if you cannot test it.
+
+**Vercel URL:** `https://myvidtv.vercel.app`
