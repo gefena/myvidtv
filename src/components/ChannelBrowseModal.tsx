@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { fetchChannelFeed } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
@@ -18,15 +18,22 @@ export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: 
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const load = () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    fetchChannelFeed(channelId)
-      .then((feed) => { setVideos(feed.videos); setLoading(false); })
-      .catch(() => { setError("Could not load videos. Check your connection and try again."); setLoading(false); });
-  };
+    try {
+      const feed = await fetchChannelFeed(channelId);
+      setVideos(feed.videos);
+    } catch {
+      setError("Could not load videos. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [channelId]);
 
-  useEffect(() => { load(); }, [channelId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };

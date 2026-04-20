@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  startTransition,
   ReactNode,
 } from "react";
 import type {
@@ -79,7 +80,6 @@ type LibraryContextValue = {
   importLibrary: (data: LibraryData, mode: "replace" | "merge") => boolean;
 };
 
-
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
@@ -89,9 +89,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    setState({
-      library: readStorage(),
-      hydrated: true,
+    startTransition(() => {
+      setState({
+        library: readStorage(),
+        hydrated: true,
+      });
     });
   }, []);
 
@@ -291,7 +293,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return ok;
       }
     },
-    [update, state]
+    [state]
   );
 
   const filteredItems = useCallback(

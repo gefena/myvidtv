@@ -1,0 +1,26 @@
+{
+  "name": "opsx",
+  "version": "0.1.0",
+  "description": "Workspace-local OpenSpec workflow commands for MyVidTV.",
+  "author": {
+    "name": "Local Workspace"
+  },
+  "license": "UNLICENSED",
+  "interface": {
+    "displayName": "OPSX",
+    "shortDescription": "OpenSpec workflow shortcuts for this workspace",
+    "longDescription": "Adds workspace-local slash commands that route Codex into the repo's OpenSpec proposal, exploration, implementation, and archive workflows.",
+    "developerName": "Local Workspace",
+    "category": "Coding",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Run an OpenSpec workflow in this repo",
+      "Explore a change idea with OPSX",
+      "Implement an approved OpenSpec change"
+    ],
+    "brandColor": "#1F6FEB"
+  }
+}

@@ -70,6 +70,11 @@ export function usePlayer(
   const lastSaveTimeRef = useRef<number>(0);
   const queueRef = useRef(queue);
 
+  const resetProgressForItem = useCallback(() => {
+    setProgress(0);
+    lastSaveTimeRef.current = Date.now();
+  }, []);
+
   useEffect(() => {
     queueRef.current = queue;
   }, [queue]);
@@ -96,6 +101,7 @@ export function usePlayer(
         next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
       }
       if (next) {
+        resetProgressForItem();
         setCurrentItem(next);
         onAutoAdvance?.(next);
       }
@@ -121,17 +127,19 @@ export function usePlayer(
       // Wrap around to first item
       const nextIdx = (idx + 1) % queueRef.current.length;
       const next = queueRef.current[nextIdx];
+      resetProgressForItem();
       setCurrentItem(next);
       onAutoAdvance?.(next);
     } else {
       // off: advance or stop
       const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
       if (next) {
+        resetProgressForItem();
         setCurrentItem(next);
         onAutoAdvance?.(next);
       }
     }
-  }, [onAutoAdvance, updateVideoPosition]);
+  }, [onAutoAdvance, resetProgressForItem, updateVideoPosition]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -217,8 +225,6 @@ export function usePlayer(
   useEffect(() => {
     const p = playerRef.current;
     if (!p || !currentItem) return;
-    setProgress(0);
-    lastSaveTimeRef.current = Date.now();
 
     if (currentItem.type === "video") {
       const video = currentItem as VideoItem;
@@ -242,14 +248,16 @@ export function usePlayer(
       if (!window.YT) {
         window.onYouTubeIframeAPIReady = () => {
           initPlayer();
+          resetProgressForItem();
           setCurrentItem(item);
         };
         return;
       }
       if (!playerRef.current) initPlayer();
+      resetProgressForItem();
       setCurrentItem(item);
     },
-    [initPlayer, saveCurrentProgress]
+    [initPlayer, resetProgressForItem, saveCurrentProgress]
   );
 
   const pause = useCallback(() => {
@@ -282,13 +290,18 @@ export function usePlayer(
     const loop = loopModeRef.current;
     if (loop === "all" && queueRef.current.length > 0) {
       const next = queueRef.current[(idx + 1) % queueRef.current.length];
+      resetProgressForItem();
       setCurrentItem(next);
       onAutoAdvance?.(next);
     } else {
       const next = idx >= 0 ? (queueRef.current[idx + 1] ?? null) : null;
-      if (next) { setCurrentItem(next); onAutoAdvance?.(next); }
+      if (next) {
+        resetProgressForItem();
+        setCurrentItem(next);
+        onAutoAdvance?.(next);
+      }
     }
-  }, [currentItem, onAutoAdvance, updateVideoPosition]);
+  }, [currentItem, onAutoAdvance, resetProgressForItem, updateVideoPosition]);
 
   const toggleMode = useCallback(() => {
     setMode((m) => (m === "watch" ? "listen" : "watch"));
