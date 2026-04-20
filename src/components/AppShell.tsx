@@ -150,47 +150,87 @@ export function AppShell() {
           {/* Spacer / empty area when nothing is playing */}
           <div style={{ flex: 1 }} />
 
-          {/* Library peek bar — context-aware when a channel video is playing */}
-          <button
-            onClick={() => {
-              if (channelContext) {
-                setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 });
-              } else {
-                setLibrarySheetOpen(true);
-              }
-            }}
+          {/* Library peek bar — splits into two when channel context is active */}
+          <div
             style={{
-              width: "100%",
-              background: "var(--surface)",
-              border: "none",
-              borderTop: "1px solid var(--border)",
-              color: "var(--text-muted)",
-              cursor: "pointer",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "14px 20px",
-              fontSize: "14px",
+              background: "var(--surface)",
+              borderTop: "1px solid var(--border)",
               paddingBottom: settings.listenMode
                 ? "calc(104px + env(safe-area-inset-bottom))"
-                : "calc(14px + env(safe-area-inset-bottom))",
+                : "env(safe-area-inset-bottom)",
             }}
           >
             {channelContext ? (
               <>
-                <span>←</span>
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {ended ? `More from ${channelContext.title}` : channelContext.title}
-                </span>
+                <button
+                  onClick={() => setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 })}
+                  style={{
+                    flex: 1,
+                    background: "none",
+                    border: "none",
+                    borderRight: "1px solid var(--border)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    padding: "14px 12px",
+                    fontSize: "14px",
+                    minHeight: "44px",
+                    minWidth: 0,
+                  }}
+                >
+                  <span style={{ flexShrink: 0 }}>←</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {ended ? `More from ${channelContext.title}` : channelContext.title}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setLibrarySheetOpen(true)}
+                  style={{
+                    flex: 1,
+                    background: "none",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    padding: "14px 12px",
+                    fontSize: "14px",
+                    minHeight: "44px",
+                  }}
+                >
+                  <span>☰</span>
+                  <span>Library</span>
+                </button>
               </>
             ) : (
-              <>
+              <button
+                onClick={() => setLibrarySheetOpen(true)}
+                style={{
+                  flex: 1,
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "14px 20px",
+                  fontSize: "14px",
+                  minHeight: "44px",
+                }}
+              >
                 <span>☰</span>
                 <span>Library</span>
-              </>
+              </button>
             )}
-          </button>
+          </div>
 
           {/* Library sheet */}
           <AnimatePresence>
