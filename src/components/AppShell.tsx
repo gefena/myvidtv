@@ -10,8 +10,10 @@ import { PlayerArea } from "./PlayerArea";
 import { LibraryPanel } from "./LibraryPanel";
 import { AddFlow } from "./AddFlow";
 import { ImportConfirm } from "./ImportConfirm";
+import { ChannelBrowseModal } from "./ChannelBrowseModal";
 import { importLibrary as parseImportFile } from "@/lib/exportImport";
-import type { LibraryItem, LibraryData } from "@/types/library";
+import type { LibraryItem, LibraryData, ChannelItem, VideoItem } from "@/types/library";
+import type { ChannelFeedVideo } from "@/lib/channelRss";
 
 export function AppShell() {
   const { items, archivedItems, settings, updateSettings, hydrated, exportLibrary } = useLibrary();
@@ -28,15 +30,37 @@ export function AppShell() {
   const [importError, setImportError] = useState<string | null>(null);
   const [exportTooltip, setExportTooltip] = useState(false);
   const [importTooltip, setImportTooltip] = useState(false);
+  const [browseChannelItem, setBrowseChannelItem] = useState<ChannelItem | null>(null);
+  const [channelContext, setChannelContext] = useState<{ channelId: string; title: string } | null>(null);
+  const [ended, setEnded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleItemEnd = useCallback((next: LibraryItem) => {
     setCurrentItem(next);
+    setChannelContext(null);
+    setEnded(false);
   }, []);
 
   const handleImportClick = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
+
+  const handleChannelVideoSelect = useCallback((video: ChannelFeedVideo, channel: ChannelItem) => {
+    const transient: VideoItem = {
+      type: "video",
+      ytId: video.ytId,
+      title: video.title,
+      channelName: channel.title,
+      thumbnail: video.thumbnail,
+      tags: [],
+      addedAt: 0,
+    };
+    setChannelContext({ channelId: channel.channelId, title: channel.title });
+    setEnded(false);
+    setCurrentItem(transient);
+    if (isMobile) setLibrarySheetOpen(false);
+    setBrowseChannelItem(null);
+  }, [isMobile]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,8 +105,11 @@ export function AppShell() {
 
   const handleSelectItem = (item: LibraryItem) => {
     setCurrentItem(item);
+    setChannelContext(null);
+    setEnded(false);
     if (isMobile) setLibrarySheetOpen(false);
   };
+
 
   return (
     <div
@@ -115,14 +142,23 @@ export function AppShell() {
             currentItem={currentItem}
             onItemEnd={handleItemEnd}
             onPlaceholderClick={() => setLibrarySheetOpen(true)}
+            onEnded={() => setEnded(true)}
+            channelContext={channelContext}
+            onOpenChannel={() => channelContext && setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 })}
           />
 
           {/* Spacer / empty area when nothing is playing */}
           <div style={{ flex: 1 }} />
 
-          {/* Library peek bar — always visible so user can switch tracks in listen mode too */}
+          {/* Library peek bar — context-aware when a channel video is playing */}
           <button
-            onClick={() => setLibrarySheetOpen(true)}
+            onClick={() => {
+              if (channelContext) {
+                setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 });
+              } else {
+                setLibrarySheetOpen(true);
+              }
+            }}
             style={{
               width: "100%",
               background: "var(--surface)",
@@ -136,14 +172,24 @@ export function AppShell() {
               gap: "8px",
               padding: "14px 20px",
               fontSize: "14px",
-              // In listen mode push content above the fixed mini bar (~104px) + safe area
               paddingBottom: settings.listenMode
                 ? "calc(104px + env(safe-area-inset-bottom))"
                 : "calc(14px + env(safe-area-inset-bottom))",
             }}
           >
-            <span>☰</span>
-            <span>Library</span>
+            {channelContext ? (
+              <>
+                <span>←</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {ended ? `More from ${channelContext.title}` : channelContext.title}
+                </span>
+              </>
+            ) : (
+              <>
+                <span>☰</span>
+                <span>Library</span>
+              </>
+            )}
           </button>
 
           {/* Library sheet */}
@@ -318,6 +364,7 @@ export function AppShell() {
                     view={libraryView}
                     onViewChange={setLibraryView}
                     isMobile
+                    onBrowseChannel={(item) => { setBrowseChannelItem(item); setLibrarySheetOpen(false); }}
                   />
                 </div>
               </motion.div>
@@ -340,6 +387,9 @@ export function AppShell() {
               currentItem={currentItem}
               onItemEnd={handleItemEnd}
               onPlaceholderClick={collapsed ? handleCollapseToggle : undefined}
+              onEnded={() => setEnded(true)}
+              channelContext={channelContext}
+              onOpenChannel={() => channelContext && setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 })}
             />
           </div>
 
@@ -367,6 +417,7 @@ export function AppShell() {
                     setLibraryView(next);
                     if (next === "library") setShowArchive(false);
                   }}
+                  onBrowseChannel={setBrowseChannelItem}
                 />
               </motion.div>
             )}
@@ -392,6 +443,15 @@ export function AppShell() {
             </button>
           )}
         </div>
+      )}
+
+      {browseChannelItem && (
+        <ChannelBrowseModal
+          channelId={browseChannelItem.channelId}
+          channelName={browseChannelItem.title}
+          onPlay={(video: ChannelFeedVideo) => handleChannelVideoSelect(video, browseChannelItem)}
+          onClose={() => setBrowseChannelItem(null)}
+        />
       )}
 
       {addOpen && (

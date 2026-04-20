@@ -11,9 +11,12 @@ type PlayerAreaProps = {
   currentItem: LibraryItem | null;
   onItemEnd?: (next: LibraryItem) => void;
   onPlaceholderClick?: () => void;
+  onEnded?: () => void;
+  channelContext?: { channelId: string; title: string } | null;
+  onOpenChannel?: () => void;
 };
 
-export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: PlayerAreaProps) {
+export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded, channelContext, onOpenChannel }: PlayerAreaProps) {
   const { items, updateSettings, settings } = useLibrary();
   const isMobile = useIsMobile();
 
@@ -32,7 +35,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: Playe
     toggleMode,
     toggleLoop,
     initPlayer,
-  } = usePlayer(items, onItemEnd, settings.listenMode ? "listen" : "watch", settings.loopMode);
+  } = usePlayer(items, onItemEnd, settings.listenMode ? "listen" : "watch", settings.loopMode, onEnded);
 
   // Sync external currentItem into player — guard against re-firing during auto-advance
   useEffect(() => {
@@ -248,9 +251,18 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: Playe
               >
                 {displayItem.title}
               </div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                {"channelName" in displayItem ? displayItem.channelName : ""}
-              </div>
+              {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                <button
+                  onClick={onOpenChannel}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}
+                >
+                  {displayItem.channelName} ↗
+                </button>
+              ) : (
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                  {"channelName" in displayItem ? displayItem.channelName : ""}
+                </div>
+              ))}
             </div>
 
             {/* Playback controls */}
@@ -331,7 +343,16 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick }: Playe
               <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {displayItem.title}
               </div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+              {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                <button
+                  onClick={onOpenChannel}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}
+                >
+                  {displayItem.channelName} ↗
+                </button>
+              ) : (
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+              ))}
             </div>
             <div style={{ display: "flex", gap: "6px" }}>
               <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>

@@ -48,11 +48,14 @@ export function usePlayer(
   queue: LibraryItem[],
   onAutoAdvance?: (item: LibraryItem) => void,
   initialMode: PlayerMode = "watch",
-  initialLoopMode: LoopMode = "off"
+  initialLoopMode: LoopMode = "off",
+  onEnded?: () => void
 ) {
   const { updateVideoPosition, updateSettings } = useLibrary();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const onEndedRef = useRef(onEnded);
+  useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
 
   // currentItemRef declared before initPlayer so the closure captures it correctly
   const currentItemRef = useRef<LibraryItem | null>(null);
@@ -159,6 +162,7 @@ export function usePlayer(
 
           if (state === window.YT.PlayerState.ENDED) {
             handleEnded();
+            onEndedRef.current?.();
           }
         },
       },

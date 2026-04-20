@@ -7,8 +7,6 @@ import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem } from "@/types/library";
-import { ChannelBrowseModal } from "./ChannelBrowseModal";
-import type { ChannelFeedVideo } from "@/lib/channelRss";
 
 type LibraryPanelProps = {
   activeTag: string;
@@ -21,6 +19,7 @@ type LibraryPanelProps = {
   view: "library" | "archive";
   onViewChange: (view: "library" | "archive") => void;
   isMobile?: boolean;
+  onBrowseChannel: (item: ChannelItem) => void;
 };
 
 function itemId(item: LibraryItem) {
@@ -40,9 +39,9 @@ export function LibraryPanel({
   view,
   onViewChange,
   isMobile = false,
+  onBrowseChannel,
 }: LibraryPanelProps) {
   const { archivedItems, filteredItems, allTags, archiveItem, restoreItem, permanentlyDeleteItem } = useLibrary();
-  const [browseChannel, setBrowseChannel] = useState<ChannelItem | null>(null);
   const [viewTooltip, setViewTooltip] = useState(false);
   const [collapseTooltip, setCollapseTooltip] = useState(false);
   const [exportTooltip, setExportTooltip] = useState(false);
@@ -270,7 +269,7 @@ export function LibraryPanel({
                   onSelect={() => {
                     if (isArchive) return;
                     if (item.type === "channel") {
-                      setBrowseChannel(item as ChannelItem);
+                      onBrowseChannel(item as ChannelItem);
                     } else {
                       onSelect(item);
                     }
@@ -291,25 +290,6 @@ export function LibraryPanel({
         )}
       </div>
 
-      {browseChannel && (
-        <ChannelBrowseModal
-          channelId={browseChannel.channelId}
-          channelName={browseChannel.title}
-          onPlay={(video: ChannelFeedVideo) => {
-            const transient: VideoItem = {
-              type: "video",
-              ytId: video.ytId,
-              title: video.title,
-              channelName: browseChannel.title,
-              thumbnail: video.thumbnail,
-              tags: [],
-              addedAt: 0,
-            };
-            onSelect(transient);
-          }}
-          onClose={() => setBrowseChannel(null)}
-        />
-      )}
     </div>
   );
 }
