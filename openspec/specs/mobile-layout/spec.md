@@ -15,6 +15,8 @@ The system SHALL include a `<meta name="viewport" content="width=device-width, i
 ### Requirement: Player-first layout on small screens
 On viewports ≤600px wide, the system SHALL display the YouTube player at the top of the screen in a 16:9 aspect ratio, with the now-playing controls bar directly below it, and a Library access button at the bottom. The Library access button SHALL be visible regardless of the current playback mode (watch or listen). Tag filter buttons in the library sheet SHALL have a minimum tap target height of 44px.
 
+When a channel video is playing and channel context is active, the Library access button SHALL display "← [Channel Name]" instead of "☰ Library". Tapping it SHALL open the channel browse modal directly, bypassing the library sheet. When channel context is active and the video has ended naturally, the button label SHALL display "← More from [Channel Name]" as a nudge.
+
 #### Scenario: Player visible on mobile in watch mode
 - **WHEN** the user is on a small screen with an item playing in watch mode
 - **THEN** the player occupies the full width at 16:9 ratio, followed by the now-playing bar, followed by a Library peek button at the bottom
@@ -30,6 +32,22 @@ On viewports ≤600px wide, the system SHALL display the YouTube player at the t
 #### Scenario: Tag bar buttons are tappable on mobile
 - **WHEN** the user views the tag filter bar on a small screen
 - **THEN** each tag button has a minimum tap target height of 44px
+
+#### Scenario: Peek bar shows back-to-channel while channel video plays
+- **WHEN** a channel video is playing on a small screen and channel context is set
+- **THEN** the peek bar displays "← [Channel Name]" instead of "☰ Library"
+
+#### Scenario: Tapping back-to-channel peek bar opens channel browse
+- **WHEN** the user taps the peek bar showing "← [Channel Name]"
+- **THEN** the channel browse modal opens for that channel; the library sheet does NOT open
+
+#### Scenario: Peek bar shows nudge after channel video ends
+- **WHEN** a channel video has finished playing naturally and channel context is still set
+- **THEN** the peek bar displays "← More from [Channel Name]"
+
+#### Scenario: Peek bar reverts to Library after channel context cleared
+- **WHEN** channel context is cleared (user picks a library item or auto-advance fires)
+- **THEN** the peek bar displays "☰ Library" again
 
 ### Requirement: Slide-up library sheet on mobile
 On small screens, the system SHALL provide a full-width bottom sheet that slides up over the player when the user taps the Library button. The sheet SHALL contain the full library panel (tag filter, item list, archive toggle, Add button). Tapping an item SHALL play it and close the sheet.
