@@ -27,10 +27,13 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     progress,
     mode,
     loopMode,
+    canSeekFixedStep,
     play,
     pause,
     resume,
     seek,
+    seekBackward,
+    seekForward,
     skipNext,
     toggleMode,
     toggleLoop,
@@ -207,92 +210,98 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             </div>
           </div>
 
-          {/* Controls row */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "10px 16px",
-            }}
-          >
-            {/* Thumbnail */}
-            {(displayItem as VideoItem).thumbnail && (
-              <div
-                style={{
-                  position: "relative",
-                  width: 48,
-                  height: 27,
-                  borderRadius: "3px",
-                  overflow: "hidden",
-                  flexShrink: 0,
-                }}
-              >
-                <Image
-                  src={(displayItem as VideoItem).thumbnail}
-                  alt={displayItem.title}
-                  fill
-                  style={{ objectFit: "cover" }}
-                />
-              </div>
-            )}
-
-            {/* Title + channel */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  color: "var(--text)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {displayItem.title}
-              </div>
-              {"channelName" in displayItem && (channelContext && onOpenChannel ? (
-                <button
-                  onClick={onOpenChannel}
-                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}
-                >
-                  {displayItem.channelName} ↗
-                </button>
-              ) : (
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                  {"channelName" in displayItem ? displayItem.channelName : ""}
+          {/* Mobile: two-row layout — metadata row then actions row */}
+          {isMobile ? (
+            <div style={{ padding: "8px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
+                {(displayItem as VideoItem).thumbnail && (
+                  <div style={{ position: "relative", width: 48, height: 27, borderRadius: "3px", overflow: "hidden", flexShrink: 0 }}>
+                    <Image src={(displayItem as VideoItem).thumbnail} alt={displayItem.title} fill style={{ objectFit: "cover" }} />
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {displayItem.title}
+                  </div>
+                  {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                      {displayItem.channelName} ↗
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile compact>−10</ControlBtn>
+                )}
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile compact>
+                  {playing ? "⏸" : "▶"}
+                </ControlBtn>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile compact>+10</ControlBtn>
+                )}
+                <ControlBtn onClick={skipNext} label="Skip" isMobile compact>⏭</ControlBtn>
+                <ControlBtn
+                  onClick={toggleLoop}
+                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+                  active={loopMode !== "off"}
+                  isMobile
+                  compact
+                >
+                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+                </ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} isMobile compact>
+                  {isListen ? "👁" : "♪"}
+                </ControlBtn>
+              </div>
             </div>
-
-            {/* Playback controls */}
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <ControlBtn
-                onClick={playing ? pause : resume}
-                label={playing ? "Pause" : "Play"}
-                isMobile={isMobile}
-              >
-                {playing ? "⏸" : "▶"}
-              </ControlBtn>
-              <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
-              <ControlBtn
-                onClick={toggleLoop}
-                label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                active={loopMode !== "off"}
-                isMobile={isMobile}
-              >
-                {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-              </ControlBtn>
-              <ControlBtn
-                onClick={handleToggleMode}
-                label={isListen ? "Watch" : "Listen"}
-                active={isListen}
-                isMobile={isMobile}
-              >
-                {isListen ? "👁" : "♪"}
-              </ControlBtn>
+          ) : (
+            /* Desktop: single-row layout */
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px" }}>
+              {(displayItem as VideoItem).thumbnail && (
+                <div style={{ position: "relative", width: 48, height: 27, borderRadius: "3px", overflow: "hidden", flexShrink: 0 }}>
+                  <Image src={(displayItem as VideoItem).thumbnail} alt={displayItem.title} fill style={{ objectFit: "cover" }} />
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {displayItem.title}
+                </div>
+                {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                  <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                    {displayItem.channelName} ↗
+                  </button>
+                ) : (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                ))}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isMobile}>−10</ControlBtn>
+                )}
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>
+                  {playing ? "⏸" : "▶"}
+                </ControlBtn>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isMobile}>+10</ControlBtn>
+                )}
+                <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
+                <ControlBtn
+                  onClick={toggleLoop}
+                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+                  active={loopMode !== "off"}
+                  isMobile={isMobile}
+                >
+                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+                </ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} isMobile={isMobile}>
+                  {isListen ? "👁" : "♪"}
+                </ControlBtn>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -334,42 +343,87 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               </div>
             </div>
           )}
-          <div style={{
-            display: "flex", alignItems: "center", gap: "12px", padding: "8px 16px",
-            paddingBottom: isMobile ? "calc(8px + env(safe-area-inset-bottom))" : "8px",
-          }}>
-            <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {displayItem.title}
+
+          {/* Mobile: two-row layout — metadata row then actions row */}
+          {isMobile ? (
+            <div style={{ padding: "8px 16px", paddingBottom: "calc(8px + env(safe-area-inset-bottom))" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
+                <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {displayItem.title}
+                  </div>
+                  {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                      {displayItem.channelName} ↗
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                  ))}
+                </div>
               </div>
-              {"channelName" in displayItem && (channelContext && onOpenChannel ? (
-                <button
-                  onClick={onOpenChannel}
-                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile compact>−10</ControlBtn>
+                )}
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile compact>
+                  {playing ? "⏸" : "▶"}
+                </ControlBtn>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile compact>+10</ControlBtn>
+                )}
+                <ControlBtn onClick={skipNext} label="Skip" isMobile compact>⏭</ControlBtn>
+                <ControlBtn
+                  onClick={toggleLoop}
+                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+                  active={loopMode !== "off"}
+                  isMobile
+                  compact
                 >
-                  {displayItem.channelName} ↗
-                </button>
-              ) : (
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
-              ))}
+                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+                </ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile compact>👁</ControlBtn>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "6px" }}>
-              <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>
-                {playing ? "⏸" : "▶"}
-              </ControlBtn>
-              <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
-              <ControlBtn
-                onClick={toggleLoop}
-                label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                active={loopMode !== "off"}
-                isMobile={isMobile}
-              >
-                {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-              </ControlBtn>
-              <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile={isMobile}>👁</ControlBtn>
+          ) : (
+            /* Desktop: single-row layout */
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 16px" }}>
+              <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {displayItem.title}
+                </div>
+                {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                  <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                    {displayItem.channelName} ↗
+                  </button>
+                ) : (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isMobile}>−10</ControlBtn>
+                )}
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>
+                  {playing ? "⏸" : "▶"}
+                </ControlBtn>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isMobile}>+10</ControlBtn>
+                )}
+                <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
+                <ControlBtn
+                  onClick={toggleLoop}
+                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+                  active={loopMode !== "off"}
+                  isMobile={isMobile}
+                >
+                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+                </ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile={isMobile}>👁</ControlBtn>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -383,6 +437,7 @@ function ControlBtn({
   active,
   dim,
   isMobile,
+  compact,
 }: {
   children: React.ReactNode;
   onClick: () => void;
@@ -390,6 +445,7 @@ function ControlBtn({
   active?: boolean;
   dim?: boolean;
   isMobile?: boolean;
+  compact?: boolean;
 }) {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -410,7 +466,7 @@ function ControlBtn({
           cursor: "pointer",
           fontSize: isMobile ? "18px" : "14px",
           opacity: dim ? 0.35 : 1,
-          padding: isMobile ? "12px 16px" : "4px 8px",
+          padding: isMobile ? (compact ? "12px 6px" : "12px 16px") : "4px 8px",
           transition: "color 0.15s, opacity 0.15s",
           minWidth: isMobile ? "44px" : undefined,
           minHeight: isMobile ? "44px" : undefined,

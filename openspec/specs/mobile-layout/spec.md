@@ -17,6 +17,8 @@ On viewports ≤600px wide, the system SHALL display the YouTube player at the t
 
 When a channel video is playing and channel context is active, the Library access button SHALL display "← [Channel Name]" instead of "☰ Library". Tapping it SHALL open the channel browse modal directly, bypassing the library sheet. When channel context is active and the video has ended naturally, the button label SHALL display "← More from [Channel Name]" as a nudge.
 
+On mobile, the now-playing UI SHALL use two rows whenever playback metadata and transport actions are both shown: the first row for thumbnail and text metadata, and the second row for playback actions. The system MUST NOT compress the metadata row so aggressively that the title and channel text become unusable in order to fit extra controls.
+
 #### Scenario: Player visible on mobile in watch mode
 - **WHEN** the user is on a small screen with an item playing in watch mode
 - **THEN** the player occupies the full width at 16:9 ratio, followed by the now-playing bar, followed by a Library peek button at the bottom
@@ -48,6 +50,14 @@ When a channel video is playing and channel context is active, the Library acces
 #### Scenario: Peek bar reverts to Library after channel context cleared
 - **WHEN** channel context is cleared (user picks a library item or auto-advance fires)
 - **THEN** the peek bar displays "☰ Library" again
+
+#### Scenario: Mobile watch bar splits metadata and actions into two rows
+- **WHEN** a video is playing on a small screen in watch mode
+- **THEN** the now-playing area shows thumbnail and metadata on the first row and transport controls on the second row
+
+#### Scenario: Mobile listen bar splits metadata and actions into two rows
+- **WHEN** a video is playing on a small screen in listen mode
+- **THEN** the fixed mini bar shows metadata on the first row and transport controls on the second row
 
 ### Requirement: Slide-up library sheet on mobile
 On small screens, the system SHALL provide a full-width bottom sheet that slides up over the player when the user taps the Library button. The sheet SHALL contain the full library panel (tag filter, item list, archive toggle, Add button). Tapping an item SHALL play it and close the sheet.

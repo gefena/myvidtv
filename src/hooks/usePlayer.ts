@@ -278,6 +278,30 @@ export function usePlayer(
     }
   }, []);
 
+  const seekBackward = useCallback(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      const cur = p.getCurrentTime();
+      const dur = p.getDuration();
+      if (dur > 0) p.seekTo(Math.max(0, cur - 10), true);
+    } catch {
+      // Player not ready
+    }
+  }, []);
+
+  const seekForward = useCallback(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      const cur = p.getCurrentTime();
+      const dur = p.getDuration();
+      if (dur > 0) p.seekTo(Math.min(dur, cur + 10), true);
+    } catch {
+      // Player not ready
+    }
+  }, []);
+
   const skipNext = useCallback(() => {
     if (currentItem?.type !== "video") {
       playerRef.current?.nextVideo();
@@ -315,6 +339,8 @@ export function usePlayer(
     });
   }, [updateSettings]);
 
+  const canSeekFixedStep = currentItem?.type === "video";
+
   return {
     containerRef,
     currentItem,
@@ -322,10 +348,13 @@ export function usePlayer(
     progress,
     mode,
     loopMode,
+    canSeekFixedStep,
     play,
     pause,
     resume,
     seek,
+    seekBackward,
+    seekForward,
     skipNext,
     toggleMode,
     toggleLoop,

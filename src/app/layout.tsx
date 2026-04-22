@@ -57,7 +57,6 @@ export default function RootLayout({
       className={`${geistSans.variable} h-full`}
     >
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col">
