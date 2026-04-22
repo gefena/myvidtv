@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { fetchChannelFeed } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 
@@ -17,6 +18,7 @@ export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -158,7 +160,7 @@ export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: 
                   onClick={() => { onPlay(video); onClose(); }}
                   style={{
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: isMobile ? "flex-start" : "center",
                     gap: "12px",
                     padding: "8px",
                     borderRadius: "8px",
@@ -181,11 +183,15 @@ export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: 
                       fontSize: "13px",
                       fontWeight: 500,
                       color: "var(--text)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
                       lineHeight: 1.3,
                       marginBottom: "4px",
+                      overflow: "hidden",
+                      textOverflow: isMobile ? undefined : "ellipsis",
+                      whiteSpace: isMobile ? "normal" : "nowrap",
+                      display: isMobile ? "-webkit-box" : "block",
+                      WebkitBoxOrient: isMobile ? "vertical" : undefined,
+                      WebkitLineClamp: isMobile ? 2 : undefined,
+                      overflowWrap: isMobile ? "anywhere" : undefined,
                     }}>
                       {video.title}
                     </div>
