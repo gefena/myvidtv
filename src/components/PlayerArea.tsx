@@ -69,10 +69,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     fontSize: "13px",
     color: "var(--text)",
     fontWeight: 500,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
     lineHeight: 1.3,
-    maxHeight: "2.6em",
+    minHeight: "2.6em",
     whiteSpace: "normal" as const,
     overflowWrap: "anywhere" as const,
   };
@@ -224,9 +222,9 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
           {/* Mobile: two-row layout — metadata row then actions row */}
           {isMobile ? (
             <div style={{ padding: "8px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
                 {(displayItem as VideoItem).thumbnail && (
-                  <div style={{ position: "relative", width: 48, height: 27, borderRadius: "3px", overflow: "hidden", flexShrink: 0 }}>
+                  <div style={{ position: "relative", width: 44, height: 25, borderRadius: "3px", overflow: "hidden", flexShrink: 0, marginTop: "2px" }}>
                     <Image src={(displayItem as VideoItem).thumbnail} alt={displayItem.title} fill style={{ objectFit: "cover" }} />
                   </div>
                 )}
@@ -358,8 +356,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
           {/* Mobile: two-row layout — metadata row then actions row */}
           {isMobile ? (
             <div style={{ padding: "8px 16px", paddingBottom: "calc(8px + env(safe-area-inset-bottom))" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
-                <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
+                <span style={{ color: "var(--violet-soft)", fontSize: "14px", lineHeight: 1, marginTop: "2px" }}>♪</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ ...mobileTitleWrapStyle, fontWeight: 400 }}>
                     {displayItem.title}
