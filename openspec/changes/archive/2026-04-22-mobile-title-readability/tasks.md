@@ -8,10 +8,10 @@
 
 - [x] 2.1 Keep the watch-bar action row visually separate from metadata after the title readability change
 - [x] 2.2 Keep the listen-bar action row visually separate from metadata after the title readability change
-- [ ] 2.3 Verify the mobile control buttons still preserve usable tap targets after the taller metadata row
+- [x] 2.3 Verify the mobile control buttons still preserve usable tap targets after the taller metadata row
 
 ## 3. Verify Layout Behavior
 
-- [ ] 3.1 Verify long titles in mobile watch mode actually display across two readable lines instead of a single-line fallback
-- [ ] 3.2 Verify long titles in mobile listen mode actually display across two readable lines instead of a single-line fallback
+- [x] 3.1 Verify long titles in mobile watch mode actually display across two readable lines instead of a single-line fallback
+- [x] 3.2 Verify long titles in mobile listen mode actually display across two readable lines instead of a single-line fallback
 - [x] 3.3 Run lint and build after the follow-up mobile title fix
