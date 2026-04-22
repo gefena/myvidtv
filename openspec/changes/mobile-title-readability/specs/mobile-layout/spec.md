@@ -5,7 +5,7 @@ On viewports ≤600px wide, the system SHALL display the YouTube player at the t
 
 When a channel video is playing and channel context is active, the Library access button SHALL display "← [Channel Name]" instead of "☰ Library". Tapping it SHALL open the channel browse modal directly, bypassing the library sheet. When channel context is active and the video has ended naturally, the button label SHALL display "← More from [Channel Name]" as a nudge.
 
-On mobile, the now-playing UI SHALL use two rows whenever playback metadata and transport actions are both shown: the first row for thumbnail and text metadata, and the second row for playback actions. The system MUST NOT compress the metadata row so aggressively that the title and channel text become unusable in order to fit extra controls. In both watch and listen modes, a long video title SHALL be able to occupy up to two lines before truncating instead of being forced onto a single ellipsized line. When channel metadata is available for the currently displayed item, the channel name SHALL remain visible as a separate secondary line beneath the title.
+On mobile, the now-playing UI SHALL use two rows whenever playback metadata and transport actions are both shown: the first row for thumbnail and text metadata, and the second row for playback actions. The system MUST NOT compress the metadata row so aggressively that the title and channel text become unusable in order to fit extra controls. In both watch and listen modes, a long video title SHALL visibly render as up to two readable lines before truncating instead of collapsing back to a single line due to styling fallback. When channel metadata is available for the currently displayed item, the channel name SHALL remain visible as a separate secondary line beneath the title.
 
 #### Scenario: Player visible on mobile in watch mode
 - **WHEN** the user is on a small screen with an item playing in watch mode
@@ -49,10 +49,10 @@ On mobile, the now-playing UI SHALL use two rows whenever playback metadata and 
 
 #### Scenario: Mobile watch bar shows more than a single-line title
 - **WHEN** a video with a long title is playing on a small screen in watch mode
-- **THEN** the title uses up to two lines before truncating instead of being forced to a single line
+- **THEN** the title visibly renders across up to two lines before truncating instead of being forced to a single line
 - **AND** if channel metadata is available, the channel name remains visible beneath the title
 
 #### Scenario: Mobile listen bar shows more than a single-line title
 - **WHEN** a video with a long title is playing on a small screen in listen mode
-- **THEN** the title uses up to two lines before truncating instead of being forced to a single line
+- **THEN** the title visibly renders across up to two lines before truncating instead of being forced to a single line
 - **AND** if channel metadata is available, the channel name remains visible beneath the title

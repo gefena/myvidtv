@@ -65,16 +65,16 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
   const isListen = mode === "listen";
   const displayItem = playerCurrentItem ?? currentItem;
-  const mobileTitleClampStyle = {
+  const mobileTitleWrapStyle = {
     fontSize: "13px",
     color: "var(--text)",
+    fontWeight: 500,
     overflow: "hidden",
     textOverflow: "ellipsis",
     lineHeight: 1.3,
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical" as const,
+    maxHeight: "2.6em",
     whiteSpace: "normal" as const,
+    overflowWrap: "anywhere" as const,
   };
 
   const placeholderInner = (
@@ -231,7 +231,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                   </div>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ ...mobileTitleClampStyle, fontWeight: 500 }}>
+                  <div style={mobileTitleWrapStyle}>
                     {displayItem.title}
                   </div>
                   {"channelName" in displayItem && (channelContext && onOpenChannel ? (
@@ -361,7 +361,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
                 <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={mobileTitleClampStyle}>
+                  <div style={{ ...mobileTitleWrapStyle, fontWeight: 400 }}>
                     {displayItem.title}
                   </div>
                   {"channelName" in displayItem && (channelContext && onOpenChannel ? (
