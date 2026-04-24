@@ -56,6 +56,8 @@ export function importLibrary(file: File): Promise<LibraryData> {
               if (typeof i.ytId !== "string" || !i.ytId) return [];
             } else if (i.type === "playlist-channel") {
               if (typeof i.ytPlaylistId !== "string" || !i.ytPlaylistId) return [];
+            } else if (i.type === "channel") {
+              if (typeof i.channelId !== "string" || !i.channelId) return [];
             } else {
               return [];
             }

@@ -8,6 +8,8 @@ Defines the channel context state retained during playback of a channel video, t
 ### Requirement: Channel context is retained while a channel video plays
 When a video that originated from a channel browse is playing, the system SHALL retain the source channel identity (`channelId` and `title`) in application state. This context SHALL be cleared when the user explicitly selects a non-channel item from the library, or when auto-advance moves to a library item after the channel video ends.
 
+Auto-advance SHALL NOT clear channel context as a side effect of loop-all wrap-around for items not in the library queue. Only an actual advance to a different, queued library item SHALL clear the context.
+
 #### Scenario: Channel video selected from browse modal
 - **WHEN** the user picks a video from the channel browse modal
 - **THEN** the channel context is set to that channel's `channelId` and `title`, and the video begins playing
@@ -19,6 +21,10 @@ When a video that originated from a channel browse is playing, the system SHALL 
 #### Scenario: Auto-advance clears channel context
 - **WHEN** a channel video ends and auto-advance moves to a library item
 - **THEN** the channel context is cleared
+
+#### Scenario: Channel context preserved when channel video ends with no auto-advance
+- **WHEN** a channel-browse video finishes and no auto-advance occurs (e.g. loop-all with out-of-queue item, or last item with loop off)
+- **THEN** the channel context remains set and the "More from [Channel]" nudge is shown
 
 ### Requirement: Ended state distinguishes natural video completion from pause
 The system SHALL expose a boolean `ended` state that is `true` only after a video finishes playing naturally (YouTube player state `ENDED`). It SHALL be reset to `false` when a new video begins playing.

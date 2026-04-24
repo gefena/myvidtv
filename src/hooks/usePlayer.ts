@@ -64,7 +64,7 @@ export function usePlayer(
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0); // 0–1
   const [mode, setMode] = useState<PlayerMode>(initialMode);
-  const [loopMode, setLoopMode] = useState<LoopMode>(initialLoopMode);
+  const [loopMode, setLoopModeState] = useState<LoopMode>(initialLoopMode);
   const loopModeRef = useRef<LoopMode>(initialLoopMode);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSaveTimeRef = useRef<number>(0);
@@ -124,7 +124,7 @@ export function usePlayer(
     const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
 
     if (loop === "all" && queueRef.current.length > 0) {
-      // Wrap around to first item
+      if (idx < 0) return;
       const nextIdx = (idx + 1) % queueRef.current.length;
       const next = queueRef.current[nextIdx];
       resetProgressForItem();
@@ -313,6 +313,7 @@ export function usePlayer(
     const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
     const loop = loopModeRef.current;
     if (loop === "all" && queueRef.current.length > 0) {
+      if (idx < 0) return;
       const next = queueRef.current[(idx + 1) % queueRef.current.length];
       resetProgressForItem();
       setCurrentItem(next);
@@ -331,13 +332,15 @@ export function usePlayer(
     setMode((m) => (m === "watch" ? "listen" : "watch"));
   }, []);
 
-  const toggleLoop = useCallback(() => {
-    setLoopMode((prev) => {
-      const next: LoopMode = prev === "off" ? "one" : prev === "one" ? "all" : "off";
-      updateSettings({ loopMode: next });
-      return next;
-    });
+  const setLoopMode = useCallback((next: LoopMode) => {
+    setLoopModeState(next);
+    updateSettings({ loopMode: next });
   }, [updateSettings]);
+
+  const toggleLoop = useCallback(() => {
+    const next: LoopMode = loopModeRef.current === "off" ? "one" : loopModeRef.current === "one" ? "all" : "off";
+    setLoopMode(next);
+  }, [setLoopMode]);
 
   const canSeekFixedStep = currentItem?.type === "video";
 
@@ -358,6 +361,7 @@ export function usePlayer(
     skipNext,
     toggleMode,
     toggleLoop,
+    setLoopMode,
     initPlayer,
   };
 }

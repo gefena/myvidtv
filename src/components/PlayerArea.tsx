@@ -37,6 +37,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     skipNext,
     toggleMode,
     toggleLoop,
+    setLoopMode,
     initPlayer,
   } = usePlayer(items, onItemEnd, settings.listenMode ? "listen" : "watch", settings.loopMode, onEnded);
 
@@ -46,6 +47,18 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
       play(currentItem);
     }
   }, [currentItem, play, playerCurrentItem]);
+
+  // Sync listen mode after Replace import — only fires when settings.listenMode changes externally
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (mode !== (settings.listenMode ? "listen" : "watch")) toggleMode();
+  }, [settings.listenMode, toggleMode]);
+
+  // Sync loop mode after Replace import — only fires when settings.loopMode changes externally
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (loopMode !== settings.loopMode) setLoopMode(settings.loopMode);
+  }, [settings.loopMode, setLoopMode]);
 
   // Persist listenMode when toggled
   const handleToggleMode = () => {
