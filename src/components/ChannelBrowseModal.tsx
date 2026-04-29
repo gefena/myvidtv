@@ -5,15 +5,17 @@ import Image from "next/image";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { fetchChannelFeed } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
+import type { WatchHistoryItem } from "@/types/library";
 
 type Props = {
   channelId: string;
   channelName: string;
+  watchHistory?: WatchHistoryItem[];
   onPlay: (video: ChannelFeedVideo) => void;
   onClose: () => void;
 };
 
-export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: Props) {
+export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], onPlay, onClose }: Props) {
   const [videos, setVideos] = useState<ChannelFeedVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,8 +162,7 @@ export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: 
                   onClick={() => { onPlay(video); onClose(); }}
                   style={{
                     display: "flex",
-                    alignItems: isMobile ? "flex-start" : "center",
-                    gap: "12px",
+                    flexDirection: "column",
                     padding: "8px",
                     borderRadius: "8px",
                     border: "none",
@@ -173,34 +174,51 @@ export function ChannelBrowseModal({ channelId, channelName, onPlay, onClose }: 
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-2)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                 >
-                  <div style={{ position: "relative", width: 96, height: 54, borderRadius: "4px", overflow: "hidden", flexShrink: 0, background: "var(--surface-2)" }}>
-                    {video.thumbnail && (
-                      <Image src={video.thumbnail} alt={video.title} fill style={{ objectFit: "cover" }} unoptimized />
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "var(--text)",
-                      lineHeight: 1.3,
-                      marginBottom: "4px",
-                      overflow: "hidden",
-                      textOverflow: isMobile ? undefined : "ellipsis",
-                      whiteSpace: isMobile ? "normal" : "nowrap",
-                      display: isMobile ? "-webkit-box" : "block",
-                      WebkitBoxOrient: isMobile ? "vertical" : undefined,
-                      WebkitLineClamp: isMobile ? 2 : undefined,
-                      overflowWrap: isMobile ? "anywhere" : undefined,
-                    }}>
-                      {video.title}
+                  <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", gap: "12px", width: "100%" }}>
+                    <div style={{ position: "relative", width: 96, height: 54, borderRadius: "4px", overflow: "hidden", flexShrink: 0, background: "var(--surface-2)" }}>
+                      {video.thumbnail && (
+                        <Image src={video.thumbnail} alt={video.title} fill style={{ objectFit: "cover" }} unoptimized />
+                      )}
                     </div>
-                    {video.publishedAt && (
-                      <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                        {new Date(video.publishedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: "var(--text)",
+                        lineHeight: 1.3,
+                        marginBottom: "4px",
+                        overflow: "hidden",
+                        textOverflow: isMobile ? undefined : "ellipsis",
+                        whiteSpace: isMobile ? "normal" : "nowrap",
+                        display: isMobile ? "-webkit-box" : "block",
+                        WebkitBoxOrient: isMobile ? "vertical" : undefined,
+                        WebkitLineClamp: isMobile ? 2 : undefined,
+                        overflowWrap: isMobile ? "anywhere" : undefined,
+                      }}>
+                        {video.title}
                       </div>
-                    )}
+                      {video.publishedAt && (
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                          {new Date(video.publishedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  {(() => {
+                    const ratio = watchHistory.find((entry) => entry.ytId === video.ytId)?.lastWatchedRatio ?? 0;
+                    return ratio > 0 ? (
+                      <div style={{ marginTop: "6px", height: "2px", background: "var(--border)", borderRadius: "1px", width: "100%" }}>
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${Math.min(1, ratio) * 100}%`,
+                            background: "var(--violet)",
+                            borderRadius: "1px",
+                          }}
+                        />
+                      </div>
+                    ) : null;
+                  })()}
                 </button>
               ))}
             </div>

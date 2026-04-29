@@ -51,7 +51,7 @@ export function usePlayer(
   initialLoopMode: LoopMode = "off",
   onEnded?: () => void
 ) {
-  const { updateVideoPosition, updateSettings } = useLibrary();
+  const { updateSettings, updateWatchProgress, getWatchHistoryEntry } = useLibrary();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const onEndedRef = useRef(onEnded);
@@ -118,7 +118,16 @@ export function usePlayer(
     }
 
     // Mark current as finished before advancing
-    updateVideoPosition((current as VideoItem).ytId, 0, 1);
+    const finishedVideo = current as VideoItem;
+    updateWatchProgress({
+      ytId: finishedVideo.ytId,
+      title: finishedVideo.title,
+      channelName: finishedVideo.channelName,
+      thumbnail: finishedVideo.thumbnail,
+      position: 1,
+      duration: 1,
+      source: finishedVideo.watchSource ?? (finishedVideo.addedAt > 0 ? { type: "library" } : { type: "unknown" }),
+    });
 
     const currentId = getItemId(current);
     const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
@@ -139,7 +148,7 @@ export function usePlayer(
         onAutoAdvance?.(next);
       }
     }
-  }, [onAutoAdvance, resetProgressForItem, updateVideoPosition]);
+  }, [onAutoAdvance, resetProgressForItem, updateWatchProgress]);
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -186,13 +195,22 @@ export function usePlayer(
       const cur = p.getCurrentTime();
       const dur = p.getDuration();
       if (dur > 0) {
-        updateVideoPosition((current as VideoItem).ytId, cur, dur);
+        const video = current as VideoItem;
+        updateWatchProgress({
+          ytId: video.ytId,
+          title: video.title,
+          channelName: video.channelName,
+          thumbnail: video.thumbnail,
+          position: cur,
+          duration: dur,
+          source: video.watchSource ?? (video.addedAt > 0 ? { type: "library" } : { type: "unknown" }),
+        });
         lastSaveTimeRef.current = Date.now();
       }
     } catch {
       // Ignored
     }
-  }, [updateVideoPosition]);
+  }, [updateWatchProgress]);
 
   // Poll for progress every 500ms
   useEffect(() => {
@@ -228,9 +246,21 @@ export function usePlayer(
 
     if (currentItem.type === "video") {
       const video = currentItem as VideoItem;
+      const startSeconds = video.lastPosition ?? 0;
+      updateWatchProgress({
+        ytId: video.ytId,
+        title: video.title,
+        channelName: video.channelName,
+        thumbnail: video.thumbnail,
+        position: startSeconds,
+        duration: 0,
+        lastWatchedRatio: video.lastWatchedRatio,
+        preferInputProgress: true,
+        source: video.watchSource ?? (video.addedAt > 0 ? { type: "library" } : { type: "unknown" }),
+      });
       p.loadVideoById({
         videoId: video.ytId,
-        startSeconds: video.lastPosition || 0,
+        startSeconds,
       });
     } else if (currentItem.type === "playlist-channel") {
       p.cuePlaylist({
@@ -240,24 +270,33 @@ export function usePlayer(
       p.playVideo();
     }
     // ChannelItem: not directly playable — opened via browse modal
-  }, [currentItem]);
+  }, [currentItem, updateWatchProgress]);
 
   const play = useCallback(
     (item: LibraryItem) => {
       saveCurrentProgress();
+      const historyEntry = item.type === "video" ? getWatchHistoryEntry((item as VideoItem).ytId) : undefined;
+      const itemToPlay =
+        item.type === "video" && typeof (item as VideoItem).lastPosition !== "number"
+          ? {
+              ...(item as VideoItem),
+              lastPosition: historyEntry?.lastPosition,
+              lastWatchedRatio: historyEntry?.lastWatchedRatio,
+            }
+          : item;
       if (!window.YT) {
         window.onYouTubeIframeAPIReady = () => {
           initPlayer();
           resetProgressForItem();
-          setCurrentItem(item);
+          setCurrentItem(itemToPlay);
         };
         return;
       }
       if (!playerRef.current) initPlayer();
       resetProgressForItem();
-      setCurrentItem(item);
+      setCurrentItem(itemToPlay);
     },
-    [initPlayer, resetProgressForItem, saveCurrentProgress]
+    [getWatchHistoryEntry, initPlayer, resetProgressForItem, saveCurrentProgress]
   );
 
   const pause = useCallback(() => {
@@ -308,7 +347,7 @@ export function usePlayer(
       return;
     }
     // Skip always advances — never restarts (loop-one only applies on natural ENDED)
-    updateVideoPosition((currentItem as VideoItem).ytId, 0, 1);
+    saveCurrentProgress();
     const currentId = getItemId(currentItem);
     const idx = queueRef.current.findIndex((i) => getItemId(i) === currentId);
     const loop = loopModeRef.current;
@@ -326,7 +365,7 @@ export function usePlayer(
         onAutoAdvance?.(next);
       }
     }
-  }, [currentItem, onAutoAdvance, resetProgressForItem, updateVideoPosition]);
+  }, [currentItem, onAutoAdvance, resetProgressForItem, saveCurrentProgress]);
 
   const toggleMode = useCallback(() => {
     setMode((m) => (m === "watch" ? "listen" : "watch"));

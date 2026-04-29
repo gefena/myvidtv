@@ -16,6 +16,8 @@ import type {
   VideoItem,
   PlaylistChannel,
   ChannelItem,
+  WatchHistoryItem,
+  WatchProgressInput,
 } from "@/types/library";
 import { STORAGE_KEY, DEFAULT_SETTINGS } from "@/lib/constants";
 import { exportLibrary as exportLibraryFile } from "@/lib/exportImport";
@@ -23,9 +25,71 @@ import { exportLibrary as exportLibraryFile } from "@/lib/exportImport";
 const DEFAULT_LIBRARY: LibraryData = {
   items: [],
   archivedItems: [],
+  watchHistory: [],
   customTags: [],
   settings: DEFAULT_SETTINGS,
 };
+
+const WATCH_HISTORY_LIMIT = 50;
+const WATCH_HISTORY_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
+
+function pruneWatchHistory(history: WatchHistoryItem[], now = Date.now()): WatchHistoryItem[] {
+  const cutoff = now - WATCH_HISTORY_MAX_AGE_MS;
+  return [...history]
+    .filter((entry) => entry.lastWatchedAt >= cutoff)
+    .sort((a, b) => b.lastWatchedAt - a.lastWatchedAt)
+    .slice(0, WATCH_HISTORY_LIMIT);
+}
+
+function upsertWatchHistory(
+  history: WatchHistoryItem[],
+  input: WatchProgressInput,
+  now = Date.now()
+): WatchHistoryItem[] {
+  const existing = history.find((entry) => entry.ytId === input.ytId);
+  const hasProgress = input.duration > 0;
+  const isFinished = hasProgress && input.position / input.duration >= 0.95;
+  const inputPosition = Number.isFinite(input.position) && input.position > 0 ? Math.floor(input.position) : 0;
+  const inputRatio =
+    typeof input.lastWatchedRatio === "number" && Number.isFinite(input.lastWatchedRatio)
+      ? Math.min(1, Math.max(0, input.lastWatchedRatio))
+      : 0;
+  const seedFromInput = !hasProgress && input.preferInputProgress;
+  const lastPosition = hasProgress
+    ? isFinished ? 0 : Math.floor(input.position)
+    : seedFromInput ? inputPosition : existing?.lastPosition ?? inputPosition;
+  const lastWatchedRatio = hasProgress
+    ? isFinished ? 0 : input.position / input.duration
+    : seedFromInput ? inputRatio : existing?.lastWatchedRatio ?? inputRatio;
+
+  const nextEntry: WatchHistoryItem = {
+    ytId: input.ytId,
+    title: input.title,
+    channelName: input.channelName,
+    thumbnail: input.thumbnail,
+    lastPosition,
+    lastWatchedRatio,
+    firstWatchedAt: existing?.firstWatchedAt ?? now,
+    lastWatchedAt: now,
+    source: input.source ?? existing?.source,
+  };
+
+  return pruneWatchHistory([
+    nextEntry,
+    ...history.filter((entry) => entry.ytId !== input.ytId),
+  ], now);
+}
+
+function mergeWatchHistory(current: WatchHistoryItem[], incoming: WatchHistoryItem[]): WatchHistoryItem[] {
+  const byId = new Map<string, WatchHistoryItem>();
+  [...current, ...incoming].forEach((entry) => {
+    const existing = byId.get(entry.ytId);
+    if (!existing || entry.lastWatchedAt > existing.lastWatchedAt) {
+      byId.set(entry.ytId, entry);
+    }
+  });
+  return pruneWatchHistory(Array.from(byId.values()));
+}
 
 function readStorage(): LibraryData {
   try {
@@ -35,6 +99,7 @@ function readStorage(): LibraryData {
     return {
       items: parsed.items ?? [],
       archivedItems: parsed.archivedItems ?? [],
+      watchHistory: pruneWatchHistory(Array.isArray(parsed.watchHistory) ? parsed.watchHistory : []),
       customTags: parsed.customTags ?? [],
       settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
     };
@@ -61,6 +126,7 @@ function getItemId(item: LibraryItem): string {
 type LibraryContextValue = {
   items: LibraryItem[];
   archivedItems: LibraryItem[];
+  watchHistory: WatchHistoryItem[];
   customTags: string[];
   settings: LibrarySettings;
   hydrated: boolean;
@@ -74,6 +140,9 @@ type LibraryContextValue = {
   updateItem: (id: string, patch: Partial<Pick<LibraryItem, "tags">>) => void;
   updateSettings: (patch: Partial<LibrarySettings>) => void;
   updateVideoPosition: (id: string, position: number, duration: number) => void;
+  updateWatchProgress: (input: WatchProgressInput) => void;
+  removeWatchHistoryEntry: (ytId: string) => void;
+  getWatchHistoryEntry: (ytId: string) => WatchHistoryItem | undefined;
   filteredItems: (tag: string | null) => LibraryItem[];
   allTags: () => string[];
   exportLibrary: () => void;
@@ -238,9 +307,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const updateVideoPosition = useCallback(
     (id: string, position: number, duration: number) => {
       update((prev) => {
-        const isFinished = duration > 0 && position / duration > 0.95;
+        const isFinished = duration > 0 && position / duration >= 0.95;
         const posToSave = isFinished ? 0 : Math.floor(position);
         const ratioToSave = isFinished ? 0 : duration > 0 ? position / duration : 0;
+        const video = [...prev.items, ...prev.archivedItems]
+          .find((item): item is VideoItem => item.type === "video" && (item as VideoItem).ytId === id);
 
         return {
           ...prev,
@@ -250,10 +321,71 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
             }
             return item;
           }),
+          archivedItems: prev.archivedItems.map((item) => {
+            if (item.type === "video" && (item as VideoItem).ytId === id) {
+              return { ...item, lastPosition: posToSave, lastWatchedRatio: ratioToSave };
+            }
+            return item;
+          }),
+          watchHistory: video
+            ? upsertWatchHistory(prev.watchHistory, {
+                ytId: video.ytId,
+                title: video.title,
+                channelName: video.channelName,
+                thumbnail: video.thumbnail,
+                position,
+                duration,
+                source: { type: "library" },
+              })
+            : prev.watchHistory,
         };
       });
     },
     [update]
+  );
+
+  const updateWatchProgress = useCallback(
+    (input: WatchProgressInput) => {
+      update((prev) => {
+        const isFinished = input.duration > 0 && input.position / input.duration >= 0.95;
+        const posToSave = isFinished ? 0 : Math.floor(input.position);
+        const ratioToSave = isFinished ? 0 : input.duration > 0 ? input.position / input.duration : 0;
+        const hasProgress = input.duration > 0;
+
+        return {
+          ...prev,
+          items: prev.items.map((item) => {
+            if (hasProgress && item.type === "video" && (item as VideoItem).ytId === input.ytId) {
+              return { ...item, lastPosition: posToSave, lastWatchedRatio: ratioToSave };
+            }
+            return item;
+          }),
+          archivedItems: prev.archivedItems.map((item) => {
+            if (hasProgress && item.type === "video" && (item as VideoItem).ytId === input.ytId) {
+              return { ...item, lastPosition: posToSave, lastWatchedRatio: ratioToSave };
+            }
+            return item;
+          }),
+          watchHistory: upsertWatchHistory(prev.watchHistory, input),
+        };
+      });
+    },
+    [update]
+  );
+
+  const removeWatchHistoryEntry = useCallback(
+    (ytId: string) => {
+      update((prev) => ({
+        ...prev,
+        watchHistory: prev.watchHistory.filter((entry) => entry.ytId !== ytId),
+      }));
+    },
+    [update]
+  );
+
+  const getWatchHistoryEntry = useCallback(
+    (ytId: string) => library.watchHistory.find((entry) => entry.ytId === ytId),
+    [library.watchHistory]
   );
 
   const exportLibrary = useCallback(() => {
@@ -263,7 +395,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const importLibrary = useCallback(
     (data: LibraryData, mode: "replace" | "merge"): boolean => {
       if (mode === "replace") {
-        const safe = { ...data, settings: { ...DEFAULT_SETTINGS, ...data.settings } };
+        const safe = {
+          ...data,
+          watchHistory: pruneWatchHistory(data.watchHistory ?? []),
+          settings: { ...DEFAULT_SETTINGS, ...data.settings },
+        };
         const ok = writeStorage(safe);
         setState((prev) => ({ ...prev, library: safe }));
         return ok;
@@ -287,6 +423,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           items: [...prev.items, ...newItems],
           archivedItems: [...prev.archivedItems, ...newArchivedItems],
           customTags: mergedCustomTags,
+          watchHistory: mergeWatchHistory(prev.watchHistory, data.watchHistory ?? []),
         };
         const ok = writeStorage(next);
         setState((s) => ({ ...s, library: next }));
@@ -315,6 +452,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       value={{
         items: library.items,
         archivedItems: library.archivedItems,
+        watchHistory: library.watchHistory,
         customTags: library.customTags,
         settings: library.settings,
         hydrated,
@@ -328,6 +466,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         updateItem,
         updateSettings,
         updateVideoPosition,
+        updateWatchProgress,
+        removeWatchHistoryEntry,
+        getWatchHistoryEntry,
         filteredItems,
         allTags,
         exportLibrary,

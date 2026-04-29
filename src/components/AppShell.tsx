@@ -12,17 +12,17 @@ import { AddFlow } from "./AddFlow";
 import { ImportConfirm } from "./ImportConfirm";
 import { ChannelBrowseModal } from "./ChannelBrowseModal";
 import { importLibrary as parseImportFile } from "@/lib/exportImport";
-import type { LibraryItem, LibraryData, ChannelItem, VideoItem } from "@/types/library";
+import type { LibraryItem, LibraryData, ChannelItem, VideoItem, WatchHistoryItem } from "@/types/library";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 
 export function AppShell() {
-  const { items, archivedItems, settings, updateSettings, hydrated, exportLibrary } = useLibrary();
+  const { items, archivedItems, watchHistory, settings, updateSettings, hydrated, exportLibrary, getWatchHistoryEntry } = useLibrary();
   const isMobile = useIsMobile();
   const [addOpen, setAddOpen] = useState(false);
   const [addInitialUrl, setAddInitialUrl] = useState("");
   const [activeTag, setActiveTag] = useState<string>("all");
   const [currentItem, setCurrentItem] = useState<LibraryItem | null>(null);
-  const [libraryView, setLibraryView] = useState<"library" | "archive">("library");
+  const [libraryView, setLibraryView] = useState<"library" | "archive" | "history">("library");
   const [showArchive, setShowArchive] = useState(false);
   const [librarySheetOpen, setLibrarySheetOpen] = useState(false);
   const [importConfirmOpen, setImportConfirmOpen] = useState(false);
@@ -46,6 +46,7 @@ export function AppShell() {
   }, []);
 
   const handleChannelVideoSelect = useCallback((video: ChannelFeedVideo, channel: ChannelItem) => {
+    const historyEntry = getWatchHistoryEntry(video.ytId);
     const transient: VideoItem = {
       type: "video",
       ytId: video.ytId,
@@ -54,13 +55,42 @@ export function AppShell() {
       thumbnail: video.thumbnail,
       tags: [],
       addedAt: 0,
+      lastPosition: historyEntry?.lastPosition,
+      lastWatchedRatio: historyEntry?.lastWatchedRatio,
+      watchSource: { type: "channel", channelId: channel.channelId },
     };
     setChannelContext({ channelId: channel.channelId, title: channel.title });
     setEnded(false);
     setCurrentItem(transient);
     if (isMobile) setLibrarySheetOpen(false);
     setBrowseChannelItem(null);
-  }, [isMobile]);
+  }, [getWatchHistoryEntry, isMobile]);
+
+  const handleHistorySelect = useCallback((entry: WatchHistoryItem) => {
+    const sourceChannelId = entry.source?.type === "channel" ? entry.source.channelId : undefined;
+    const sourceChannel = sourceChannelId
+      ? [...items, ...archivedItems].find((item): item is ChannelItem =>
+          item.type === "channel" && (item as ChannelItem).channelId === sourceChannelId
+        )
+      : null;
+    const watchSource = sourceChannel ? entry.source : { type: "history" as const };
+    const transient: VideoItem = {
+      type: "video",
+      ytId: entry.ytId,
+      title: entry.title,
+      channelName: entry.channelName,
+      thumbnail: entry.thumbnail,
+      tags: [],
+      addedAt: 0,
+      lastPosition: entry.lastPosition,
+      lastWatchedRatio: entry.lastWatchedRatio,
+      watchSource,
+    };
+    setCurrentItem(transient);
+    setChannelContext(sourceChannel ? { channelId: sourceChannel.channelId, title: sourceChannel.title } : null);
+    setEnded(false);
+    if (isMobile) setLibrarySheetOpen(false);
+  }, [archivedItems, isMobile, items]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,7 +126,7 @@ export function AppShell() {
 
   if (!hydrated) return null;
 
-  const isEmpty = items.length === 0 && !showArchive;
+  const isEmpty = items.length === 0 && watchHistory.length === 0 && !showArchive;
   const collapsed = settings.libraryCollapsed;
 
   const handleCollapseToggle = () => {
@@ -262,10 +292,10 @@ export function AppShell() {
                     padding: "8px 16px 12px",
                   }}>
                     <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-                      {libraryView === "archive" ? "Archive" : "Library"}
+                      {libraryView === "archive" ? "Archive" : libraryView === "history" ? "History" : "Library"}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      {libraryView === "library" && (
+                      {libraryView !== "archive" && (
                         <button
                           onClick={() => setAddOpen(true)}
                           style={{
@@ -281,7 +311,7 @@ export function AppShell() {
                           + Add
                         </button>
                       )}
-                      {libraryView === "library" && (
+                      {libraryView !== "archive" && (
                         <div
                           style={{ position: "relative", display: "inline-flex" }}
                           onMouseEnter={() => setExportTooltip(true)}
@@ -316,7 +346,7 @@ export function AppShell() {
                           )}
                         </div>
                       )}
-                      {libraryView === "library" && (
+                      {libraryView !== "archive" && (
                         <div
                           style={{ position: "relative", display: "inline-flex" }}
                           onMouseEnter={() => setImportTooltip(true)}
@@ -405,6 +435,7 @@ export function AppShell() {
                     onViewChange={setLibraryView}
                     isMobile
                     onBrowseChannel={(item) => { setBrowseChannelItem(item); setLibrarySheetOpen(false); }}
+                    onSelectHistory={handleHistorySelect}
                   />
                 </div>
               </motion.div>
@@ -458,6 +489,7 @@ export function AppShell() {
                     if (next === "library") setShowArchive(false);
                   }}
                   onBrowseChannel={setBrowseChannelItem}
+                  onSelectHistory={handleHistorySelect}
                 />
               </motion.div>
             )}
@@ -489,6 +521,7 @@ export function AppShell() {
         <ChannelBrowseModal
           channelId={browseChannelItem.channelId}
           channelName={browseChannelItem.title}
+          watchHistory={watchHistory}
           onPlay={(video: ChannelFeedVideo) => handleChannelVideoSelect(video, browseChannelItem)}
           onClose={() => setBrowseChannelItem(null)}
         />

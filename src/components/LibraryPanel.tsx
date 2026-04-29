@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { PREDEFINED_TAGS } from "@/lib/constants";
-import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem } from "@/types/library";
+import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem, WatchHistoryItem } from "@/types/library";
 
 type LibraryPanelProps = {
   activeTag: string;
@@ -16,10 +16,11 @@ type LibraryPanelProps = {
   onCollapse: () => void;
   onExport?: () => void;
   onImport?: () => void;
-  view: "library" | "archive";
-  onViewChange: (view: "library" | "archive") => void;
+  view: "library" | "archive" | "history";
+  onViewChange: (view: "library" | "archive" | "history") => void;
   isMobile?: boolean;
   onBrowseChannel: (item: ChannelItem) => void;
+  onSelectHistory: (item: WatchHistoryItem) => void;
 };
 
 function itemId(item: LibraryItem) {
@@ -40,8 +41,18 @@ export function LibraryPanel({
   onViewChange,
   isMobile = false,
   onBrowseChannel,
+  onSelectHistory,
 }: LibraryPanelProps) {
-  const { archivedItems, filteredItems, allTags, archiveItem, restoreItem, permanentlyDeleteItem } = useLibrary();
+  const {
+    archivedItems,
+    watchHistory,
+    filteredItems,
+    allTags,
+    archiveItem,
+    restoreItem,
+    permanentlyDeleteItem,
+    removeWatchHistoryEntry,
+  } = useLibrary();
   const [viewTooltip, setViewTooltip] = useState(false);
   const [collapseTooltip, setCollapseTooltip] = useState(false);
   const [exportTooltip, setExportTooltip] = useState(false);
@@ -53,6 +64,7 @@ export function LibraryPanel({
     : archivedItems;
 
   const isArchive = view === "archive";
+  const isHistory = view === "history";
 
   return (
     <div
@@ -78,7 +90,7 @@ export function LibraryPanel({
           }}
         >
           <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-            {isArchive ? "Archive" : "Library"}
+            {isArchive ? "Archive" : isHistory ? "History" : "Library"}
           </span>
           <div style={{ display: "flex", gap: "6px" }}>
             {!isArchive && onExport && (
@@ -147,28 +159,43 @@ export function LibraryPanel({
               onMouseLeave={() => setViewTooltip(false)}
             >
               <button
-                onClick={() => onViewChange(isArchive ? "library" : "archive")}
-                aria-label={isArchive ? "Back to library" : "View archive"}
+                onClick={() => onViewChange(isHistory ? "library" : "history")}
+                aria-label={isHistory ? "Back to library" : "View history"}
                 style={{
-                  background: isArchive ? "var(--violet-glow)" : "none",
+                  background: isHistory ? "var(--violet-glow)" : "none",
                   border: "1px solid var(--border)",
                   borderRadius: "4px",
-                  color: isArchive ? "var(--violet-soft)" : "var(--text-muted)",
+                  color: isHistory ? "var(--violet-soft)" : "var(--text-muted)",
                   cursor: "pointer",
                   fontSize: "11px",
                   padding: "3px 6px",
                 }}
               >
-                {isArchive ? "← Library" : "Archive"}
+                {isHistory ? "← Library" : "History"}
               </button>
               {viewTooltip && !isMobile && (
                 <div
                   style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
                 >
-                  {isArchive ? "Back to library" : "View archive"}
+                  {isHistory ? "Back to library" : "View history"}
                 </div>
               )}
             </div>
+            <button
+              onClick={() => onViewChange(isArchive ? "library" : "archive")}
+              aria-label={isArchive ? "Back to library" : "View archive"}
+              style={{
+                background: isArchive ? "var(--violet-glow)" : "none",
+                border: "1px solid var(--border)",
+                borderRadius: "4px",
+                color: isArchive ? "var(--violet-soft)" : "var(--text-muted)",
+                cursor: "pointer",
+                fontSize: "11px",
+                padding: "3px 6px",
+              }}
+            >
+              {isArchive ? "← Library" : "Archive"}
+            </button>
             <div
               style={{ position: "relative", display: "inline-flex" }}
               onMouseEnter={() => setCollapseTooltip(true)}
@@ -201,8 +228,43 @@ export function LibraryPanel({
         </div>
       )}
 
-      {/* Tag bar — hidden in archive view */}
-      {!isArchive && (
+      {isMobile && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: "6px",
+            padding: "8px 14px",
+            borderBottom: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          {(["library", "history", "archive"] as const).map((nextView) => {
+            const active = view === nextView;
+            return (
+              <button
+                key={nextView}
+                onClick={() => onViewChange(nextView)}
+                style={{
+                  background: active ? "var(--violet-glow)" : "none",
+                  border: "1px solid var(--border)",
+                  borderRadius: "4px",
+                  color: active ? "var(--violet-soft)" : "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  minHeight: "44px",
+                  textTransform: "capitalize",
+                }}
+              >
+                {nextView}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tag bar — hidden in archive/history views */}
+      {!isArchive && !isHistory && (
         <div
           style={{
             display: "flex",
@@ -248,48 +310,179 @@ export function LibraryPanel({
 
       {/* Items list */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
-        <AnimatePresence mode="popLayout">
-          {displayItems.map((item) => {
-            const id = itemId(item);
-            const isActive = currentItem ? itemId(currentItem) === id : false;
-            return (
+        {isHistory ? (
+          <AnimatePresence mode="popLayout">
+            {watchHistory.map((entry) => (
               <motion.div
-                key={id}
+                key={entry.ytId}
                 layout
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.2 }}
               >
-                <LibraryCard
-                  item={item}
-                  isActive={isActive}
-                  isArchive={isArchive}
+                <HistoryCard
+                  entry={entry}
                   isMobile={isMobile}
-                  onSelect={() => {
-                    if (isArchive) return;
-                    if (item.type === "channel") {
-                      onBrowseChannel(item as ChannelItem);
-                    } else {
-                      onSelect(item);
-                    }
-                  }}
-                  onArchive={() => archiveItem(id)}
-                  onRestore={() => restoreItem(id)}
-                  onDelete={() => permanentlyDeleteItem(id)}
+                  isActive={currentItem?.type === "video" && (currentItem as VideoItem).ytId === entry.ytId}
+                  onSelect={() => onSelectHistory(entry)}
+                  onRemove={() => removeWatchHistoryEntry(entry.ytId)}
                 />
               </motion.div>
-            );
-          })}
-        </AnimatePresence>
+            ))}
+          </AnimatePresence>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {displayItems.map((item) => {
+              const id = itemId(item);
+              const isActive = currentItem ? itemId(currentItem) === id : false;
+              return (
+                <motion.div
+                  key={id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <LibraryCard
+                    item={item}
+                    isActive={isActive}
+                    isArchive={isArchive}
+                    isMobile={isMobile}
+                    onSelect={() => {
+                      if (isArchive) return;
+                      if (item.type === "channel") {
+                        onBrowseChannel(item as ChannelItem);
+                      } else {
+                        onSelect(item);
+                      }
+                    }}
+                    onArchive={() => archiveItem(id)}
+                    onRestore={() => restoreItem(id)}
+                    onDelete={() => permanentlyDeleteItem(id)}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        )}
 
-        {displayItems.length === 0 && (
+        {(isHistory ? watchHistory.length === 0 : displayItems.length === 0) && (
           <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "13px", padding: "40px 0" }}>
-            {isArchive ? "Your archive is empty." : "No items with this tag."}
+            {isHistory ? "No watch history yet." : isArchive ? "Your archive is empty." : "No items with this tag."}
           </div>
         )}
       </div>
 
+    </div>
+  );
+}
+
+function HistoryCard({
+  entry,
+  isActive,
+  isMobile,
+  onSelect,
+  onRemove,
+}: {
+  entry: WatchHistoryItem;
+  isActive: boolean;
+  isMobile: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+}) {
+  const ratio = entry.lastWatchedRatio > 0 ? Math.min(1, entry.lastWatchedRatio) : 0;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        padding: "8px",
+        paddingLeft: isActive ? "5px" : "8px",
+        borderRadius: "8px",
+        cursor: "pointer",
+        background: isActive ? "var(--surface-2)" : "transparent",
+        border: `1px solid ${isActive ? "var(--violet)" : "transparent"}`,
+        borderLeft: isActive ? "3px solid var(--violet)" : "1px solid transparent",
+        transition: "background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s",
+        marginBottom: "2px",
+      }}
+      onClick={onSelect}
+      onMouseEnter={isMobile ? undefined : (e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "var(--surface-2)";
+          e.currentTarget.style.transform = "translateY(-1px)";
+          e.currentTarget.style.boxShadow = "0 4px 16px rgba(124,58,237,0.12)";
+        }
+      }}
+      onMouseLeave={isMobile ? undefined : (e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.transform = "";
+          e.currentTarget.style.boxShadow = "";
+        }
+      }}
+    >
+      <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+        <div style={{ position: "relative", width: 80, height: 45, flexShrink: 0, borderRadius: "4px", overflow: "hidden", background: "var(--border)" }}>
+          {entry.thumbnail && (
+            <Image src={entry.thumbnail} alt={entry.title} fill style={{ objectFit: "cover" }} />
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: "13px",
+            color: "var(--text)",
+            fontWeight: isActive ? 500 : 400,
+            lineHeight: 1.3,
+            marginBottom: "3px",
+            display: "-webkit-box",
+            WebkitLineClamp: isMobile ? 2 : 1,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            overflowWrap: "anywhere",
+          }}>
+            {entry.title}
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{entry.channelName}</div>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          aria-label="Remove from history"
+          style={{
+            background: "none",
+            border: "none",
+            color: isMobile ? "#f87171" : "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: isMobile ? "18px" : "14px",
+            opacity: isMobile ? 0.8 : 0.55,
+            minWidth: isMobile ? "44px" : undefined,
+            minHeight: isMobile ? "44px" : undefined,
+            padding: isMobile ? "8px" : "2px",
+            lineHeight: 1,
+            flexShrink: 0,
+          }}
+        >
+          ×
+        </button>
+      </div>
+      {ratio > 0 && (
+        <div style={{ marginTop: "6px", height: "2px", background: "var(--border)", borderRadius: "1px" }}>
+          <div
+            style={{
+              height: "100%",
+              width: `${ratio * 100}%`,
+              background: "var(--violet)",
+              borderRadius: "1px",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
