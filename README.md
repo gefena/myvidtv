@@ -33,6 +33,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Verification
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run build
+npm run check
+npm run test:e2e
+npm run check:all
+```
+
+Unit tests cover deterministic app logic. Browser smoke tests cover first-party desktop/mobile UI behavior and intentionally avoid real YouTube iframe playback, resume timing, and embedded player internals; those remain manual checks when changed.
+
 ## Deployment
 
 Deployed on [Vercel](https://vercel.com). No environment variables required.

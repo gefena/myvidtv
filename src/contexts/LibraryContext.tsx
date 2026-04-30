@@ -21,6 +21,7 @@ import type {
 } from "@/types/library";
 import { STORAGE_KEY, DEFAULT_SETTINGS } from "@/lib/constants";
 import { exportLibrary as exportLibraryFile } from "@/lib/exportImport";
+import { mergeWatchHistory, pruneWatchHistory, upsertWatchHistory, calculateStoredProgress } from "@/lib/libraryLogic";
 
 const DEFAULT_LIBRARY: LibraryData = {
   items: [],
@@ -29,67 +30,6 @@ const DEFAULT_LIBRARY: LibraryData = {
   customTags: [],
   settings: DEFAULT_SETTINGS,
 };
-
-const WATCH_HISTORY_LIMIT = 50;
-const WATCH_HISTORY_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
-
-function pruneWatchHistory(history: WatchHistoryItem[], now = Date.now()): WatchHistoryItem[] {
-  const cutoff = now - WATCH_HISTORY_MAX_AGE_MS;
-  return [...history]
-    .filter((entry) => entry.lastWatchedAt >= cutoff)
-    .sort((a, b) => b.lastWatchedAt - a.lastWatchedAt)
-    .slice(0, WATCH_HISTORY_LIMIT);
-}
-
-function upsertWatchHistory(
-  history: WatchHistoryItem[],
-  input: WatchProgressInput,
-  now = Date.now()
-): WatchHistoryItem[] {
-  const existing = history.find((entry) => entry.ytId === input.ytId);
-  const hasProgress = input.duration > 0;
-  const isFinished = hasProgress && input.position / input.duration >= 0.95;
-  const inputPosition = Number.isFinite(input.position) && input.position > 0 ? Math.floor(input.position) : 0;
-  const inputRatio =
-    typeof input.lastWatchedRatio === "number" && Number.isFinite(input.lastWatchedRatio)
-      ? Math.min(1, Math.max(0, input.lastWatchedRatio))
-      : 0;
-  const seedFromInput = !hasProgress && input.preferInputProgress;
-  const lastPosition = hasProgress
-    ? isFinished ? 0 : Math.floor(input.position)
-    : seedFromInput ? inputPosition : existing?.lastPosition ?? inputPosition;
-  const lastWatchedRatio = hasProgress
-    ? isFinished ? 0 : input.position / input.duration
-    : seedFromInput ? inputRatio : existing?.lastWatchedRatio ?? inputRatio;
-
-  const nextEntry: WatchHistoryItem = {
-    ytId: input.ytId,
-    title: input.title,
-    channelName: input.channelName,
-    thumbnail: input.thumbnail,
-    lastPosition,
-    lastWatchedRatio,
-    firstWatchedAt: existing?.firstWatchedAt ?? now,
-    lastWatchedAt: now,
-    source: input.source ?? existing?.source,
-  };
-
-  return pruneWatchHistory([
-    nextEntry,
-    ...history.filter((entry) => entry.ytId !== input.ytId),
-  ], now);
-}
-
-function mergeWatchHistory(current: WatchHistoryItem[], incoming: WatchHistoryItem[]): WatchHistoryItem[] {
-  const byId = new Map<string, WatchHistoryItem>();
-  [...current, ...incoming].forEach((entry) => {
-    const existing = byId.get(entry.ytId);
-    if (!existing || entry.lastWatchedAt > existing.lastWatchedAt) {
-      byId.set(entry.ytId, entry);
-    }
-  });
-  return pruneWatchHistory(Array.from(byId.values()));
-}
 
 function readStorage(): LibraryData {
   try {
@@ -307,9 +247,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const updateVideoPosition = useCallback(
     (id: string, position: number, duration: number) => {
       update((prev) => {
-        const isFinished = duration > 0 && position / duration >= 0.95;
-        const posToSave = isFinished ? 0 : Math.floor(position);
-        const ratioToSave = isFinished ? 0 : duration > 0 ? position / duration : 0;
+        const { lastPosition: posToSave, lastWatchedRatio: ratioToSave } = calculateStoredProgress(position, duration);
         const video = [...prev.items, ...prev.archivedItems]
           .find((item): item is VideoItem => item.type === "video" && (item as VideoItem).ytId === id);
 
@@ -347,9 +285,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const updateWatchProgress = useCallback(
     (input: WatchProgressInput) => {
       update((prev) => {
-        const isFinished = input.duration > 0 && input.position / input.duration >= 0.95;
-        const posToSave = isFinished ? 0 : Math.floor(input.position);
-        const ratioToSave = isFinished ? 0 : input.duration > 0 ? input.position / input.duration : 0;
+        const { lastPosition: posToSave, lastWatchedRatio: ratioToSave } = calculateStoredProgress(input.position, input.duration);
         const hasProgress = input.duration > 0;
 
         return {
