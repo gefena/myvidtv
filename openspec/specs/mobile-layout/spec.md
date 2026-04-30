@@ -113,11 +113,25 @@ The system SHALL apply `env(safe-area-inset-bottom)` padding to all fixed bottom
 - **THEN** the element's content is not obscured by the home indicator
 
 ### Requirement: Responsive mobile layout
-The system SHALL display the mobile layout (bottom-sheet library) on mobile devices regardless of viewport orientation (portrait or landscape). The mobile layout SHALL prevent React component tree unmounting of the YouTube iframe during orientation changes by locking the device into the mobile view.
+The system SHALL display the mobile layout (bottom-sheet library) exclusively on phone-sized viewports (width ≤ 600px), in any orientation. Touch devices with wider viewports (601px and above) SHALL receive the tablet layout, not the mobile layout.
 
-#### Scenario: Device rotated to landscape
-- **WHEN** a user viewing the application on a mobile device rotates it from portrait to landscape
-- **THEN** the layout remains locked in the mobile bottom-sheet configuration instead of shifting to the side-by-side desktop layout, preventing iframe destruction.
+The YouTube iframe SHALL never be destroyed during orientation changes. This is achieved by keeping `PlayerArea` in a structurally stable position in the React tree across all layout modes, rather than by locking all touch-landscape devices into the mobile layout.
+
+#### Scenario: Phone in portrait uses mobile layout
+- **WHEN** a user opens the app on a phone in portrait orientation (viewport ≤ 600px)
+- **THEN** the mobile bottom-sheet layout is rendered
+
+#### Scenario: Phone in landscape uses mobile layout
+- **WHEN** a user opens the app on a phone in landscape orientation (viewport ≤ 600px)
+- **THEN** the mobile bottom-sheet layout is rendered
+
+#### Scenario: Tablet does not use mobile layout
+- **WHEN** a user opens the app on a tablet (touch device, viewport 601–1200px)
+- **THEN** the tablet layout is rendered instead of the mobile bottom-sheet layout
+
+#### Scenario: Iframe survives phone orientation change
+- **WHEN** a phone user rotates the device while a video is playing
+- **THEN** the video continues playing from the same position without interruption
 
 ### Requirement: Dynamic viewport height adaptation
 The root layout containers SHALL use dynamic viewport height (`100dvh`) to ensure the application UI properly scales to fit the available screen space without jumping or hiding behind dynamic browser navigation chrome.
