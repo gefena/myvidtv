@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { useLayout } from "@/hooks/useLayout";
 import { fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 import type { WatchHistoryItem } from "@/types/library";
@@ -20,7 +20,7 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<{ message: string; requestId?: string } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const isMobile = useIsMobile();
+  const isMobile = useLayout() === "phone";
 
   const load = useCallback(async () => {
     setLoading(true);

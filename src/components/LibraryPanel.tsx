@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { PREDEFINED_TAGS } from "@/lib/constants";
+import type { Layout } from "@/hooks/useLayout";
 import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem, WatchHistoryItem } from "@/types/library";
 
 type LibraryPanelProps = {
@@ -18,7 +19,7 @@ type LibraryPanelProps = {
   onImport?: () => void;
   view: "library" | "archive" | "history";
   onViewChange: (view: "library" | "archive" | "history") => void;
-  isMobile?: boolean;
+  layout?: Layout;
   onBrowseChannel: (item: ChannelItem) => void;
   onSelectHistory: (item: WatchHistoryItem) => void;
 };
@@ -39,7 +40,7 @@ export function LibraryPanel({
   onImport,
   view,
   onViewChange,
-  isMobile = false,
+  layout = "desktop",
   onBrowseChannel,
   onSelectHistory,
 }: LibraryPanelProps) {
@@ -58,6 +59,11 @@ export function LibraryPanel({
   const [exportTooltip, setExportTooltip] = useState(false);
   const [importTooltip, setImportTooltip] = useState(false);
 
+  // phone-only behavior (sheet, mobile-specific nav)
+  const isMobile = layout === "phone";
+  // touch sizing and no-hover treatment for phone + tablet
+  const isTouch = layout !== "desktop";
+
   const tags = allTags();
   const displayItems = view === "library"
     ? filteredItems(activeTag === "all" ? null : activeTag)
@@ -73,12 +79,12 @@ export function LibraryPanel({
         flexDirection: "column",
         height: "100%",
         background: "var(--surface)",
-        borderLeft: isMobile ? "none" : "1px solid var(--border)",
-        width: isMobile ? "100%" : "320px",
+        borderLeft: layout === "phone" ? "none" : "1px solid var(--border)",
+        width: layout === "desktop" ? "320px" : "100%",
       }}
     >
-      {/* Panel header — hidden on mobile (sheet header in AppShell takes over) */}
-      {!isMobile && (
+      {/* Panel header — hidden on phone (sheet header in AppShell takes over) */}
+      {layout !== "phone" && (
         <div
           style={{
             display: "flex",
@@ -110,11 +116,16 @@ export function LibraryPanel({
                     cursor: "pointer",
                     fontSize: "11px",
                     padding: "3px 6px",
+                    minWidth: isTouch ? "44px" : undefined,
+                    minHeight: isTouch ? "44px" : undefined,
+                    display: isTouch ? "flex" : undefined,
+                    alignItems: isTouch ? "center" : undefined,
+                    justifyContent: isTouch ? "center" : undefined,
                   }}
                 >
                   ↓
                 </button>
-                {exportTooltip && !isMobile && (
+                {exportTooltip && !isTouch && (
                   <div
                     style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
                   >
@@ -140,11 +151,16 @@ export function LibraryPanel({
                     cursor: "pointer",
                     fontSize: "11px",
                     padding: "3px 6px",
+                    minWidth: isTouch ? "44px" : undefined,
+                    minHeight: isTouch ? "44px" : undefined,
+                    display: isTouch ? "flex" : undefined,
+                    alignItems: isTouch ? "center" : undefined,
+                    justifyContent: isTouch ? "center" : undefined,
                   }}
                 >
                   ↑
                 </button>
-                {importTooltip && !isMobile && (
+                {importTooltip && !isTouch && (
                   <div
                     style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
                   >
@@ -169,11 +185,16 @@ export function LibraryPanel({
                   cursor: "pointer",
                   fontSize: "11px",
                   padding: "3px 6px",
+                  minWidth: isTouch ? "44px" : undefined,
+                  minHeight: isTouch ? "44px" : undefined,
+                  display: isTouch ? "flex" : undefined,
+                  alignItems: isTouch ? "center" : undefined,
+                  justifyContent: isTouch ? "center" : undefined,
                 }}
               >
                 {isHistory ? "← Library" : "History"}
               </button>
-              {viewTooltip && !isMobile && (
+              {viewTooltip && !isTouch && (
                 <div
                   style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
                 >
@@ -192,38 +213,45 @@ export function LibraryPanel({
                 cursor: "pointer",
                 fontSize: "11px",
                 padding: "3px 6px",
+                minWidth: isTouch ? "44px" : undefined,
+                minHeight: isTouch ? "44px" : undefined,
+                display: isTouch ? "flex" : undefined,
+                alignItems: isTouch ? "center" : undefined,
+                justifyContent: isTouch ? "center" : undefined,
               }}
             >
               {isArchive ? "← Library" : "Archive"}
             </button>
-            <div
-              style={{ position: "relative", display: "inline-flex" }}
-              onMouseEnter={() => setCollapseTooltip(true)}
-              onMouseLeave={() => setCollapseTooltip(false)}
-            >
-              <button
-                onClick={onCollapse}
-                aria-label="Collapse library"
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  borderRadius: "4px",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  padding: "3px 6px",
-                }}
+            {layout === "desktop" && (
+              <div
+                style={{ position: "relative", display: "inline-flex" }}
+                onMouseEnter={() => setCollapseTooltip(true)}
+                onMouseLeave={() => setCollapseTooltip(false)}
               >
-                ◀
-              </button>
-              {collapseTooltip && !isMobile && (
-                <div
-                  style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                <button
+                  onClick={onCollapse}
+                  aria-label="Collapse library"
+                  style={{
+                    background: "none",
+                    border: "1px solid var(--border)",
+                    borderRadius: "4px",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    padding: "3px 6px",
+                  }}
                 >
-                  Collapse
-                </div>
-              )}
-            </div>
+                  ◀
+                </button>
+                {collapseTooltip && (
+                  <div
+                    style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+                  >
+                    Collapse
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -323,7 +351,7 @@ export function LibraryPanel({
               >
                 <HistoryCard
                   entry={entry}
-                  isMobile={isMobile}
+                  isMobile={isTouch}
                   isActive={currentItem?.type === "video" && (currentItem as VideoItem).ytId === entry.ytId}
                   onSelect={() => onSelectHistory(entry)}
                   onRemove={() => removeWatchHistoryEntry(entry.ytId)}
@@ -349,7 +377,7 @@ export function LibraryPanel({
                     item={item}
                     isActive={isActive}
                     isArchive={isArchive}
-                    isMobile={isMobile}
+                    isMobile={isTouch}
                     onSelect={() => {
                       if (isArchive) return;
                       if (item.type === "channel") {

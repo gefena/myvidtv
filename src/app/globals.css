@@ -55,10 +55,43 @@ body {
 
 /* ── Responsive layout ────────────────────────────────────── */
 
-/* Tablet: stack library below player */
-@media (max-width: 900px) {
-  .main-content {
-    flex-direction: column !important;
+/* Tablet layout container: portrait = column, landscape = row */
+.tablet-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+@media (orientation: landscape) {
+  .tablet-layout {
+    flex-direction: row;
+  }
+}
+
+/* Tablet player wrapper: portrait = shrink-to-content, landscape = flex-grow */
+.tablet-player {
+  overflow: hidden;
+  flex-shrink: 0;
+}
+@media (orientation: landscape) {
+  .tablet-player {
+    flex: 1;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+}
+
+/* Tablet library panel: portrait = fill remaining height, landscape = fixed sidebar */
+.tablet-library {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+@media (orientation: landscape) {
+  .tablet-library {
+    flex: none;
+    width: 280px;
+    flex-shrink: 0;
   }
 }
 

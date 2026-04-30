@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { usePlayer, getItemId } from "@/hooks/usePlayer";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import type { Layout } from "@/hooks/useLayout";
 import type { LibraryItem, VideoItem } from "@/types/library";
 
 type PlayerAreaProps = {
@@ -14,11 +14,13 @@ type PlayerAreaProps = {
   onEnded?: () => void;
   channelContext?: { channelId: string; title: string } | null;
   onOpenChannel?: () => void;
+  layout?: Layout;
 };
 
-export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded, channelContext, onOpenChannel }: PlayerAreaProps) {
+export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded, channelContext, onOpenChannel, layout = "desktop" }: PlayerAreaProps) {
   const { items, updateSettings, settings } = useLibrary();
-  const isMobile = useIsMobile();
+  const isMobile = layout === "phone";
+  const isTouch = layout !== "desktop";
 
   const {
     containerRef,
@@ -116,11 +118,18 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
         background: "var(--bg)",
       }}
     >
-      {/* YouTube IFrame container — on mobile uses 16:9 aspect ratio; on desktop collapses in listen mode */}
+      {/* YouTube IFrame container — phone/tablet: 16:9 aspect ratio; desktop: flex height */}
       <div
         style={
-          isMobile
+          layout === "desktop"
             ? {
+                flex: isListen ? "0 0 0" : "1",
+                overflow: "hidden",
+                transition: "flex 0.3s ease",
+                position: "relative",
+                background: "#000",
+              }
+            : {
                 width: "100%",
                 aspectRatio: isListen ? undefined : "16/9",
                 flex: isListen ? "0 0 0" : undefined,
@@ -128,13 +137,6 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                 position: "relative",
                 background: "#000",
                 flexShrink: 0,
-              }
-            : {
-                flex: isListen ? "0 0 0" : "1",
-                overflow: "hidden",
-                transition: "flex 0.3s ease",
-                position: "relative",
-                background: "#000",
               }
         }
       >
@@ -207,10 +209,10 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             flexShrink: 0,
           }}
         >
-          {/* Progress bar — touch-target wrapper expands hit area on mobile */}
+          {/* Progress bar — touch-target wrapper expands hit area on phone */}
           <div
             style={{
-              padding: isMobile ? "21px 0" : "0",
+              padding: layout === "phone" ? "21px 0" : "0",
               cursor: "pointer",
               background: "transparent",
             }}
@@ -232,8 +234,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             </div>
           </div>
 
-          {/* Mobile: two-row layout — metadata row then actions row */}
-          {isMobile ? (
+          {/* Phone: two-row layout — metadata row then actions row */}
+          {layout === "phone" ? (
             <div style={{ padding: "8px 16px" }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
                 {(displayItem as VideoItem).thumbnail && (
@@ -280,7 +282,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               </div>
             </div>
           ) : (
-            /* Desktop: single-row layout */
+            /* Tablet + desktop: single-row layout */
             <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px" }}>
               {(displayItem as VideoItem).thumbnail && (
                 <div style={{ position: "relative", width: 48, height: 27, borderRadius: "3px", overflow: "hidden", flexShrink: 0 }}>
@@ -301,24 +303,24 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isMobile}>−10</ControlBtn>
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isTouch}>−10</ControlBtn>
                 )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isTouch}>
                   {playing ? "⏸" : "▶"}
                 </ControlBtn>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isMobile}>+10</ControlBtn>
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isTouch}>+10</ControlBtn>
                 )}
-                <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
+                <ControlBtn onClick={skipNext} label="Skip" isMobile={isTouch}>⏭</ControlBtn>
                 <ControlBtn
                   onClick={toggleLoop}
                   label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
                   active={loopMode !== "off"}
-                  isMobile={isMobile}
+                  isMobile={isTouch}
                 >
                   {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
                 </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} isMobile={isMobile}>
+                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} isMobile={isTouch}>
                   {isListen ? "👁" : "♪"}
                 </ControlBtn>
               </div>
@@ -328,9 +330,14 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
       )}
 
       {/* Mini listen bar — shown when in listen mode and something is playing */}
+      {/* Tablet: in-flow (library stays visible). Phone/desktop: fixed overlay. */}
       {isListen && displayItem && (
         <div
-          style={{
+          style={layout === "tablet" ? {
+            background: "var(--surface)",
+            borderTop: "1px solid var(--violet)",
+            flexShrink: 0,
+          } : {
             position: "fixed",
             bottom: 0,
             left: 0,
@@ -340,11 +347,11 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             zIndex: 150,
           }}
         >
-          {/* Progress bar — videos only, touch-target wrapper on mobile */}
+          {/* Progress bar — videos only, touch-target wrapper on phone */}
           {displayItem.type === "video" && (
             <div
               style={{
-                padding: isMobile ? "21px 0" : "0",
+                padding: layout === "phone" ? "21px 0" : "0",
                 cursor: "pointer",
                 background: "transparent",
               }}
@@ -366,8 +373,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             </div>
           )}
 
-          {/* Mobile: two-row layout — metadata row then actions row */}
-          {isMobile ? (
+          {/* Phone: two-row layout — metadata row then actions row */}
+          {layout === "phone" ? (
             <div style={{ padding: "8px 16px", paddingBottom: "calc(8px + env(safe-area-inset-bottom))" }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
                 <span style={{ color: "var(--violet-soft)", fontSize: "14px", lineHeight: 1, marginTop: "2px" }}>♪</span>
@@ -408,7 +415,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               </div>
             </div>
           ) : (
-            /* Desktop: single-row layout */
+            /* Tablet + desktop: single-row layout */
             <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 16px" }}>
               <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -425,24 +432,24 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               </div>
               <div style={{ display: "flex", gap: "6px" }}>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isMobile}>−10</ControlBtn>
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isTouch}>−10</ControlBtn>
                 )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isMobile}>
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isTouch}>
                   {playing ? "⏸" : "▶"}
                 </ControlBtn>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isMobile}>+10</ControlBtn>
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isTouch}>+10</ControlBtn>
                 )}
-                <ControlBtn onClick={skipNext} label="Skip" isMobile={isMobile}>⏭</ControlBtn>
+                <ControlBtn onClick={skipNext} label="Skip" isMobile={isTouch}>⏭</ControlBtn>
                 <ControlBtn
                   onClick={toggleLoop}
                   label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
                   active={loopMode !== "off"}
-                  isMobile={isMobile}
+                  isMobile={isTouch}
                 >
                   {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
                 </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile={isMobile}>👁</ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile={isTouch}>👁</ControlBtn>
               </div>
             </div>
           )}
