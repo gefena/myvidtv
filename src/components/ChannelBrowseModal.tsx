@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { fetchChannelFeed } from "@/lib/channelRss";
+import { fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 import type { WatchHistoryItem } from "@/types/library";
 
@@ -18,7 +18,7 @@ type Props = {
 export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], onPlay, onClose }: Props) {
   const [videos, setVideos] = useState<ChannelFeedVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; requestId?: string } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -28,8 +28,11 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
     try {
       const feed = await fetchChannelFeed(channelId);
       setVideos(feed.videos);
-    } catch {
-      setError("Could not load videos. Check your connection and try again.");
+    } catch (err) {
+      setError({
+        message: "Could not load videos. Check your connection and try again.",
+        requestId: getChannelErrorRequestId(err),
+      });
     } finally {
       setLoading(false);
     }
@@ -130,7 +133,12 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
 
           {error && (
             <div style={{ textAlign: "center", padding: "40px 20px" }}>
-              <p style={{ color: "#f87171", marginBottom: "16px", fontSize: "14px" }}>{error}</p>
+              <p style={{ color: "#f87171", marginBottom: error.requestId ? "8px" : "16px", fontSize: "14px" }}>{error.message}</p>
+              {error.requestId && (
+                <p style={{ color: "var(--text-muted)", margin: "0 0 16px", fontSize: "12px", fontFamily: "monospace" }}>
+                  Reference: {error.requestId}
+                </p>
+              )}
               <button
                 onClick={load}
                 style={{

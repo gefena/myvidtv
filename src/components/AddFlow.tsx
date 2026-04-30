@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
-import { isChannelUrl, resolveChannelId, fetchChannelFeed } from "@/lib/channelRss";
+import { isChannelUrl, resolveChannelId, fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
 import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { VideoMeta } from "@/types/library";
 
@@ -15,7 +15,7 @@ type Step =
   | { name: "video"; meta: VideoMeta }
   | { name: "playlist-name"; playlistId: string }
   | { name: "channel-name"; channelId: string; channelName: string; channelThumbnail: string }
-  | { name: "error"; message: string };
+  | { name: "error"; message: string; requestId?: string };
 
 type AddFlowProps = {
   onClose: () => void;
@@ -45,7 +45,11 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
         setChannelName(feed.channelName);
         setStep({ name: "channel-name", channelId, channelName: feed.channelName, channelThumbnail: feed.channelThumbnail });
       } catch (err) {
-        setStep({ name: "error", message: err instanceof Error ? err.message : "Could not resolve channel." });
+        setStep({
+          name: "error",
+          message: err instanceof Error ? err.message : "Could not resolve channel.",
+          requestId: getChannelErrorRequestId(err),
+        });
       }
       return;
     }
@@ -267,6 +271,11 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
               <p style={{ color: "#f87171", marginBottom: "16px", margin: "0 0 16px" }}>
                 {step.message}
               </p>
+              {step.requestId && (
+                <p style={{ color: "var(--text-muted)", margin: "0 0 16px", fontSize: "12px", fontFamily: "monospace" }}>
+                  Reference: {step.requestId}
+                </p>
+              )}
               <button
                 onClick={() => setStep({ name: "input" })}
                 style={{

@@ -1,8 +1,5 @@
-# channel-browsing Specification
+## MODIFIED Requirements
 
-## Purpose
-Defines the capability to save YouTube channels to the library and browse their recent videos via a modal overlay.
-## Requirements
 ### Requirement: Save a YouTube channel to the library
 The system SHALL accept YouTube channel URLs in the AddFlow input and save them as `channel` library items. Supported URL formats are `youtube.com/channel/{channelId}`, `youtube.com/@{handle}`, `youtube.com/c/{name}`, and `youtube.com/user/{name}`. For `@handle`, `/c/`, and `/user/` URLs, the system SHALL resolve the identifier to a stable channel ID by fetching the YouTube page server-side and parsing the channel ID from the RSS `<link>` tag in `<head>`.
 
@@ -55,17 +52,6 @@ When channel resolution or RSS prefill fails, the AddFlow SHALL preserve the exi
 - **WHEN** the user tries to add a channel that already exists in the library or archive
 - **THEN** the system displays an appropriate duplicate error and does not save
 
-### Requirement: Channel cards in the library
-Channel items saved to the library SHALL be displayed as cards visually consistent with other library items. Each channel card SHALL carry a visible "Channel" badge to distinguish it from video and playlist-channel cards. The card SHALL display the channel thumbnail captured at save-time.
-
-#### Scenario: Channel card rendered with thumbnail
-- **WHEN** the library contains a `channel` item with a non-empty thumbnail
-- **THEN** a card is rendered showing the thumbnail image, channel name, tags, and a "Channel" badge
-
-#### Scenario: Channel card rendered without thumbnail
-- **WHEN** the library contains a `channel` item with an empty thumbnail
-- **THEN** a card is rendered with a placeholder background, channel name, tags, and a "Channel" badge
-
 ### Requirement: Channel browse modal
 Clicking a channel card SHALL open a modal overlay that fetches and displays the channel's most recent videos via YouTube's public RSS feed (`https://www.youtube.com/feeds/videos.xml?channel_id={channelId}`). The modal SHALL show video title, thumbnail, and published date for each entry. The RSS feed provides approximately 15 most recent videos. The modal SHALL always open from the top of the list (no scroll state is preserved between openings). The modal MAY be triggered from sources other than a channel card click (e.g. a back-to-channel affordance in the player) — it SHALL behave identically regardless of trigger.
 
@@ -117,4 +103,3 @@ On small screens, the scrolling video list in the channel browse modal SHALL ren
 #### Scenario: Mobile channel row remains a single tap target
 - **WHEN** the user taps anywhere on a video row in the mobile channel browse list
 - **THEN** the system selects that video for playback using the same row-level interaction as before
-
