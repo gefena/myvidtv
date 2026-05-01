@@ -71,7 +71,7 @@ Clicking a channel card SHALL open a modal overlay that fetches and displays the
 
 When a fetched channel video has a matching watch history entry with `lastWatchedRatio` greater than 0, the modal row SHALL display a thin progress indicator for that video. Selecting a channel video SHALL use watch history to resume playback when a matching entry exists, and playback SHALL create or update watch history without adding the video to the library.
 
-When the RSS fetch fails, the modal SHALL display a friendly error message and retry option. If the channel feed API provides a diagnostic request ID, the modal SHALL display it as a reference for troubleshooting without exposing raw upstream response details.
+When the RSS fetch fails and a valid cache entry exists, the modal SHALL display the cached videos with a staleness banner indicating the cache date. When the RSS fetch fails and no valid cache entry exists, the modal SHALL display a context-specific error message based on the failure type and offer a retry option. If the channel feed API provides a diagnostic request ID, the modal SHALL display it as a reference for troubleshooting without exposing raw upstream response details.
 
 On small screens, the scrolling video list in the channel browse modal SHALL render each video title across up to two readable lines before truncating instead of forcing a single-line ellipsis. The published date SHALL remain visible as separate metadata beneath the title, and the row SHALL remain a single tap target for playback.
 
@@ -103,11 +103,25 @@ On small screens, the scrolling video list in the channel browse modal SHALL ren
 - **WHEN** the user starts playback of a video selected from the channel browse modal
 - **THEN** the matching watch history entry records the source channel context
 
-#### Scenario: RSS fetch fails
-- **WHEN** the RSS feed cannot be fetched
-- **THEN** the modal displays an error message and offers a retry option
+#### Scenario: RSS fetch fails — stale cache available
+- **WHEN** the RSS feed fetch fails AND a valid cache entry exists for the channel (within 7 days)
+- **THEN** the modal displays the cached video list with a banner reading "Showing cached videos from [date] — YouTube could not be reached."
+- **AND** the modal does not display an error state or retry button
+
+#### Scenario: RSS fetch fails — YouTube server error, no cache
+- **WHEN** the RSS feed fetch fails with a YouTube server error (`YOUTUBE_RSS_UPSTREAM_ERROR`) AND no valid cache entry exists
+- **THEN** the modal displays the message "YouTube's feed server is currently unavailable." and offers a retry option
 - **AND** the modal displays the diagnostic request ID when the API provides one
-- **AND** the modal does not display raw upstream response details
+
+#### Scenario: RSS fetch fails — network error, no cache
+- **WHEN** the RSS feed fetch fails with a network or timeout error (`YOUTUBE_RSS_FETCH_ERROR`) AND no valid cache entry exists
+- **THEN** the modal displays the message "Could not reach YouTube. Check your connection." and offers a retry option
+- **AND** the modal displays the diagnostic request ID when the API provides one
+
+#### Scenario: RSS fetch fails — parse error, no cache
+- **WHEN** the RSS feed fetch fails with a parse error (`YOUTUBE_RSS_PARSE_ERROR`) AND no valid cache entry exists
+- **THEN** the modal displays the message "Unexpected response from YouTube's feed server." and offers a retry option
+- **AND** the modal displays the diagnostic request ID when the API provides one
 
 #### Scenario: Mobile channel list shows more readable titles
 - **WHEN** the user browses a channel on a small screen and a video has a long title

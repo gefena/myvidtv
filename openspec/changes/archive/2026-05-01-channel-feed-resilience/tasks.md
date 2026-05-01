@@ -27,7 +27,7 @@
 ## 5. Verification
 
 - [x] 5.1 Run `npm run build` — no TypeScript errors
-- [ ] 5.2 Open a channel modal while online — videos load, cache entry written to localStorage (`myvidtv_channel_feed_cache`)
-- [ ] 5.3 Simulate offline: open the same channel modal — stale banner appears with the cached videos
-- [ ] 5.4 Simulate offline for a channel with no cache entry — correct error message shown with retry button
+- [x] 5.2 Open a channel modal while online — videos load, cache entry written to localStorage (`myvidtv_channel_feed_cache`)
+- [x] 5.3 Simulate offline: open the same channel modal — stale banner appears with the cached videos
+- [x] 5.4 Simulate offline for a channel with no cache entry — correct error message shown with retry button
 - [x] 5.5 Test with `debug=1` on `/api/channel-feed` locally to confirm `Cache-Control` header is present on success responses
