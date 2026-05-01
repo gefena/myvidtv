@@ -1,3 +1,5 @@
+import { writeCache, getCacheEntry } from "@/lib/channelFeedCache";
+
 export type ChannelFeedVideo = {
   ytId: string;
   title: string;
@@ -9,6 +11,12 @@ export type ChannelFeed = {
   channelName: string;
   channelThumbnail: string;
   videos: ChannelFeedVideo[];
+};
+
+export type ChannelFeedResult = {
+  feed: ChannelFeed;
+  fromCache: boolean;
+  cachedAt?: number;
 };
 
 export class ChannelApiError extends Error {
@@ -69,33 +77,42 @@ export async function resolveChannelId(url: string): Promise<string> {
   return data.channelId;
 }
 
-export async function fetchChannelFeed(channelId: string): Promise<ChannelFeed> {
-  const res = await fetch(`/api/channel-feed?channelId=${encodeURIComponent(channelId)}`);
-  if (!res.ok) {
-    throw await createChannelApiError(res, () => "Could not fetch channel feed.");
+export async function fetchChannelFeed(channelId: string): Promise<ChannelFeedResult> {
+  try {
+    const res = await fetch(`/api/channel-feed?channelId=${encodeURIComponent(channelId)}`);
+    if (!res.ok) {
+      throw await createChannelApiError(res, () => "Could not fetch channel feed.");
+    }
+
+    const text = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, "application/xml");
+
+    const channelName =
+      doc.querySelector("feed > title")?.textContent ?? "Unknown Channel";
+
+    const entries = Array.from(doc.querySelectorAll("entry"));
+    const videos: ChannelFeedVideo[] = entries.map((entry) => {
+      const ytId = entry.querySelector("id")?.textContent?.replace("yt:video:", "") ?? "";
+      const title = entry.querySelector("title")?.textContent ?? "";
+      const thumbnail =
+        entry.querySelector("media\\:thumbnail, thumbnail")?.getAttribute("url") ??
+        (ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : "");
+      const publishedAt = entry.querySelector("published")?.textContent ?? "";
+      return { ytId, title, thumbnail, publishedAt };
+    }).filter((v) => v.ytId);
+
+    const channelThumbnail = videos[0]?.thumbnail ?? "";
+    const feed: ChannelFeed = { channelName, channelThumbnail, videos };
+    writeCache(channelId, feed);
+    return { feed, fromCache: false };
+  } catch (error) {
+    const entry = getCacheEntry(channelId);
+    if (entry) {
+      return { feed: entry.feed, fromCache: true, cachedAt: entry.cachedAt };
+    }
+    throw error;
   }
-
-  const text = await res.text();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(text, "application/xml");
-
-  const channelName =
-    doc.querySelector("feed > title")?.textContent ?? "Unknown Channel";
-
-  const entries = Array.from(doc.querySelectorAll("entry"));
-  const videos: ChannelFeedVideo[] = entries.map((entry) => {
-    const ytId = entry.querySelector("id")?.textContent?.replace("yt:video:", "") ?? "";
-    const title = entry.querySelector("title")?.textContent ?? "";
-    const thumbnail =
-      entry.querySelector("media\\:thumbnail, thumbnail")?.getAttribute("url") ??
-      (ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : "");
-    const publishedAt = entry.querySelector("published")?.textContent ?? "";
-    return { ytId, title, thumbnail, publishedAt };
-  }).filter((v) => v.ytId);
-
-  const channelThumbnail = videos[0]?.thumbnail ?? "";
-
-  return { channelName, channelThumbnail, videos };
 }
 
 export function getChannelErrorRequestId(error: unknown): string | undefined {

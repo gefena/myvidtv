@@ -1,4 +1,5 @@
 export const STORAGE_KEY = "myvidtv_library";
+export const FEED_CACHE_KEY = "myvidtv_channel_feed_cache";
 
 export const PREDEFINED_TAGS = [
   "music",

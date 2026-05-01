@@ -52,7 +52,11 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
 
     return new Response(xml, {
-      headers: { "Content-Type": "application/xml; charset=utf-8", "x-request-id": ctx.requestId },
+      headers: {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=3600",
+        "x-request-id": ctx.requestId,
+      },
     });
   } catch (error) {
     const detail = {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useLayout } from "@/hooks/useLayout";
-import { fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
+import { fetchChannelFeed, getChannelErrorRequestId, ChannelApiError } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 import type { WatchHistoryItem } from "@/types/library";
 
@@ -15,23 +15,40 @@ type Props = {
   onClose: () => void;
 };
 
+function getFeedErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "YOUTUBE_RSS_UPSTREAM_ERROR": return "YouTube's feed server is currently unavailable.";
+    case "YOUTUBE_RSS_FETCH_ERROR": return "Could not reach YouTube. Check your connection.";
+    case "YOUTUBE_RSS_PARSE_ERROR": return "Unexpected response from YouTube's feed server.";
+    default: return "Could not load videos. Check your connection and try again.";
+  }
+}
+
 export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], onPlay, onClose }: Props) {
   const [videos, setVideos] = useState<ChannelFeedVideo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<{ message: string; requestId?: string } | null>(null);
+  const [fromCache, setFromCache] = useState(false);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [error, setError] = useState<{ message: string; requestId?: string; code?: string } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const isMobile = useLayout() === "phone";
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setFromCache(false);
+    setCachedAt(null);
     try {
-      const feed = await fetchChannelFeed(channelId);
+      const { feed, fromCache: cached, cachedAt: cAt } = await fetchChannelFeed(channelId);
       setVideos(feed.videos);
+      setFromCache(cached);
+      setCachedAt(cAt ?? null);
     } catch (err) {
+      const code = err instanceof ChannelApiError ? err.code : undefined;
       setError({
-        message: "Could not load videos. Check your connection and try again.",
+        message: getFeedErrorMessage(code),
         requestId: getChannelErrorRequestId(err),
+        code,
       });
     } finally {
       setLoading(false);
@@ -153,6 +170,20 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
               >
                 Retry
               </button>
+            </div>
+          )}
+
+          {!loading && !error && fromCache && cachedAt !== null && (
+            <div style={{
+              margin: "0 0 8px",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              background: "var(--surface-2)",
+              border: "1px solid var(--border)",
+              fontSize: "12px",
+              color: "var(--text-muted)",
+            }}>
+              Showing cached videos from {new Date(cachedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} — YouTube could not be reached.
             </div>
           )}
 

@@ -41,7 +41,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       setStep({ name: "loading" });
       try {
         const channelId = await resolveChannelId(trimmed);
-        const feed = await fetchChannelFeed(channelId);
+        const { feed } = await fetchChannelFeed(channelId);
         setChannelName(feed.channelName);
         setStep({ name: "channel-name", channelId, channelName: feed.channelName, channelThumbnail: feed.channelThumbnail });
       } catch (err) {
