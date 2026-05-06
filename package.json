@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "check:all": "npm run check && npm run test:e2e",
-    "prepare": "husky || true"
+    "prepare": "lefthook install || true"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -31,7 +31,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
-    "husky": "^9.1.7",
+    "lefthook": "^2.1.6",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.5"

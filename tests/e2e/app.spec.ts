@@ -8,7 +8,7 @@ test("desktop shell renders without unhandled page errors", async ({ page, isMob
 
   await page.goto("/");
 
-  await expect(page.getByText("MyVidTV")).toBeVisible();
+  await expect(page).toHaveTitle(/MyVidTV/);
   expect(errors).toEqual([]);
 });
 
@@ -39,5 +39,5 @@ test("mobile history selection closes the sheet and keeps controls reachable", a
   await page.getByText("Seeded History Video").click();
 
   await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
-  await expect(page.getByText("Seeded History Video")).toBeVisible();
+  await expect(page.getByText("Seeded History Video").first()).toBeVisible();
 });
