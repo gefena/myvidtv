@@ -20,15 +20,21 @@ export function Header({ onAdd }: HeaderProps) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        {/* Viewport mark — rounded frame + violet signal dot */}
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--text-muted)" }}>
-          <rect x="1.5" y="1.5" width="21" height="21" rx="5" stroke="currentColor" strokeWidth="1.5"/>
-          <circle cx="8.5" cy="16" r="3.5" fill="#8b5cf6"/>
-        </svg>
+        {/* Rounded-square badge with violet dot */}
+        <div style={{
+          width: 26, height: 26, borderRadius: 7,
+          background: "var(--surface-2)",
+          border: "1.5px solid var(--border-hi)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 0 18px var(--logo-glow)",
+          flexShrink: 0,
+        }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--violet)" }} />
+        </div>
         {/* Two-tone wordmark */}
-        <span style={{ fontSize: "14px", letterSpacing: "0.06em", lineHeight: 1 }}>
-          <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>MyVid</span>
-          <span style={{ fontWeight: 600, color: "var(--violet)" }}>TV</span>
+        <span style={{ fontSize: "15px", fontWeight: 600, letterSpacing: "-0.3px", lineHeight: 1 }}>
+          <span style={{ color: "var(--text)" }}>MyVid</span>
+          <span style={{ color: "var(--violet)" }}>TV</span>
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
