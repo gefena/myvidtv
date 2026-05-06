@@ -168,7 +168,8 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(0,0,0,0.55)",
+        backdropFilter: "blur(14px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -179,7 +180,8 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       <div
         style={{
           background: "var(--surface)",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--border-hi)",
+          boxShadow: "0 0 40px var(--violet-glow)",
           borderRadius: "12px",
           maxWidth: "480px",
           width: "100%",

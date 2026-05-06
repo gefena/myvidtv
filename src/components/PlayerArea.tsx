@@ -202,8 +202,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
       {displayItem && !isListen && (
         <div
           style={{
-            background: "var(--surface)",
-            borderTop: "1px solid var(--border)",
+            background: "var(--surface-3)",
+            borderTop: "2px solid var(--border-hi)",
             flexShrink: 0,
           }}
         >

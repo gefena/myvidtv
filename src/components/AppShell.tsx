@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { useLayout } from "@/hooks/useLayout";
 import { Header } from "./Header";
@@ -147,7 +148,7 @@ export function AppShell() {
         flexDirection: "column",
         height: "100dvh",
         overflow: "hidden",
-        background: "var(--bg)",
+        background: "var(--bg-grad)",
       }}
     >
       <Header onAdd={() => setAddOpen(true)} />
@@ -258,6 +259,66 @@ export function AppShell() {
                     >
                       <span>☰</span>
                       <span>Library</span>
+                    </button>
+                  </>
+                ) : currentItem && currentItem.type === "video" ? (
+                  /* Styled minibar — shows current video info when playing */
+                  <>
+                    <button
+                      onClick={() => setLibrarySheetOpen(true)}
+                      style={{
+                        flex: 1,
+                        background: "none",
+                        border: "none",
+                        color: "var(--text)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "10px 14px",
+                        minHeight: "44px",
+                        minWidth: 0,
+                        textAlign: "left",
+                      }}
+                    >
+                      {(currentItem as VideoItem).thumbnail && (
+                        <div style={{ position: "relative", width: 24, height: 14, borderRadius: "2px", overflow: "hidden", flexShrink: 0 }}>
+                          <Image
+                            src={(currentItem as VideoItem).thumbnail}
+                            alt={(currentItem as VideoItem).title}
+                            fill
+                            style={{ objectFit: "cover" }}
+                          />
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3 }}>
+                          {(currentItem as VideoItem).title}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {(currentItem as VideoItem).channelName}
+                        </div>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setLibrarySheetOpen(true)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        borderLeft: "1px solid var(--border)",
+                        color: "var(--text-muted)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        padding: "10px 16px",
+                        fontSize: "14px",
+                        minHeight: "44px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span>☰</span>
                     </button>
                   </>
                 ) : (
