@@ -13,7 +13,9 @@ The system SHALL include a `<meta name="viewport" content="width=device-width, i
 - **THEN** the page renders at the device's native width with no zooming or scaling applied
 
 ### Requirement: Player-first layout on small screens
-On viewports ≤600px wide, the system SHALL display the YouTube player at the top of the screen in a 16:9 aspect ratio, with the now-playing controls bar directly below it, and a Library access button at the bottom. The Library access button SHALL be visible regardless of the current playback mode (watch or listen). Tag filter buttons in the library sheet SHALL have a minimum tap target height of 44px.
+On viewports ≤600px wide, the system SHALL display the YouTube player at the top of the screen in a 16:9 aspect ratio, with the now-playing controls bar directly below it, and a Library access bar at the bottom. The Library access bar SHALL be visible regardless of the current playback mode (watch or listen). Tag filter buttons in the library sheet SHALL have a minimum tap target height of 44px.
+
+When a video is actively playing, the Library access bar SHALL show the current video's thumbnail (24×14px, `border-radius: 2px`), title (single line, truncated), and channel name alongside the ☰ Library button. Tapping the left (info) area opens the library sheet. When nothing is playing, the bar falls back to the plain "☰ Library" button.
 
 When a channel video is playing and channel context is active, the Library access button SHALL display "← [Channel Name]" instead of "☰ Library". Tapping it SHALL open the channel browse modal directly, bypassing the library sheet. When channel context is active and the video has ended naturally, the button label SHALL display "← More from [Channel Name]" as a nudge.
 
@@ -34,6 +36,14 @@ On mobile, the now-playing UI SHALL use two rows whenever playback metadata and 
 #### Scenario: Tag bar buttons are tappable on mobile
 - **WHEN** the user views the tag filter bar on a small screen
 - **THEN** each tag button has a minimum tap target height of 44px
+
+#### Scenario: Peek bar shows current video thumbnail and title while playing
+- **WHEN** a video item is playing on a small screen (channel context not active)
+- **THEN** the peek bar shows a small thumbnail, the video title, and the channel name alongside the ☰ Library button; tapping the left area opens the library sheet
+
+#### Scenario: Peek bar shows plain Library button when nothing is playing
+- **WHEN** no item is playing on a small screen
+- **THEN** the peek bar shows only "☰ Library"
 
 #### Scenario: Peek bar shows back-to-channel while channel video plays
 - **WHEN** a channel video is playing on a small screen and channel context is set

@@ -25,7 +25,7 @@ test("history view displays seeded history", async ({ page, isMobile }) => {
   test.skip(isMobile, "desktop-only history smoke test");
   await seedLibrary(page, { watchHistory: [watchHistoryEntry()] });
 
-  await page.getByRole("button", { name: "View history" }).click();
+  await page.getByRole("button", { name: "history" }).click();
 
   await expect(page.getByText("Seeded History Video")).toBeVisible();
 });
@@ -35,7 +35,7 @@ test("mobile history selection closes the sheet and keeps controls reachable", a
   await seedLibrary(page, { watchHistory: [watchHistoryEntry()] });
 
   await page.getByRole("button", { name: /library/i }).click();
-  await page.getByRole("button", { name: "History" }).click();
+  await page.getByRole("button", { name: "history" }).click();
   await page.getByText("Seeded History Video").click();
 
   await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();

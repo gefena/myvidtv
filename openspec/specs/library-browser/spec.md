@@ -115,3 +115,36 @@ The system SHALL provide a toggle or navigation link in the library panel to swi
 - **WHEN** the user is viewing History
 - **THEN** active library tag filtering does not hide watch history entries
 
+
+### Requirement: Library card action buttons fade in on hover
+On non-touch (desktop) layouts, library card action buttons SHALL be hidden at `opacity: 0` when the row is idle and transition to `opacity: 1` when the parent card row is hovered. Touch layouts (phone, tablet) are unaffected and keep buttons always visible.
+
+#### Scenario: Desktop user hovers a library card
+- **WHEN** the user moves the pointer over a library card on a desktop layout
+- **THEN** the action buttons (archive, tag edit) transition from opacity 0 to opacity 1
+
+#### Scenario: Desktop user moves pointer away from library card
+- **WHEN** the user moves the pointer off a library card on a desktop layout
+- **THEN** the action buttons transition back to opacity 0
+
+#### Scenario: Touch layout shows action buttons without hover
+- **WHEN** the user views library cards on a phone or tablet
+- **THEN** action buttons are always visible at full opacity
+
+### Requirement: Library header uses tab-style view navigation
+On non-phone layouts, the Library / History / Archive view switcher SHALL render as a tab row with an underline indicator (`2px solid var(--violet)` on the active tab) rather than small bordered buttons. Active tab text uses `--text`; inactive tabs use `--text-muted`.
+
+#### Scenario: Active view tab is underlined
+- **WHEN** the library panel is showing the Library view
+- **THEN** the "Library" tab has a violet underline and full-opacity text; "History" and "Archive" tabs are muted
+
+#### Scenario: Switching views via tab
+- **WHEN** the user clicks a tab in the header
+- **THEN** the library list switches to the selected view and the clicked tab becomes active
+
+### Requirement: Tag chips use chip token
+Library card tag badges SHALL use `var(--chip)` background (semi-transparent neutral) and `var(--violet-soft)` text color.
+
+#### Scenario: Library card with tags
+- **WHEN** a library item has one or more tags
+- **THEN** each tag chip renders with `--chip` background and `--violet-soft` text

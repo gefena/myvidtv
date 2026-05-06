@@ -36,3 +36,14 @@ The system SHALL define all theme colors as CSS custom properties on `:root[data
 #### Scenario: Theme token defined
 - **WHEN** a component renders a background or text color
 - **THEN** it references a CSS custom property (e.g., `var(--bg)`, `var(--violet)`) rather than a literal color value
+
+### Requirement: Add modal uses backdrop blur and accent glow
+The add-video modal overlay SHALL apply `backdrop-filter: blur(14px)` so the content behind it is blurred rather than simply dimmed. The modal dialog container SHALL use `var(--border-hi)` as its border color and a `box-shadow` of `0 0 40px var(--violet-glow)` to give it a soft accent glow.
+
+#### Scenario: User opens the add modal
+- **WHEN** the user opens the add-video modal
+- **THEN** the overlay blurs the content behind it and the dialog has a violet-glow border and shadow
+
+#### Scenario: Light theme modal
+- **WHEN** the user has light theme active and opens the add modal
+- **THEN** the backdrop blur and `--border-hi` glow are applied using the light-theme token values
