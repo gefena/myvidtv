@@ -33,7 +33,7 @@ export async function fetchVideoOEmbed(url: string): Promise<VideoMeta> {
 export function extractVideoId(url: string): string | null {
   try {
     const u = new URL(url.trim());
-    const hostname = u.hostname.replace(/^www\./, "");
+    const hostname = u.hostname.replace(/^(www|m)\./, "");
 
     if (hostname === "youtu.be") return u.pathname.slice(1) || null;
     if (hostname === "youtube.com") {
@@ -53,7 +53,7 @@ export function extractVideoId(url: string): string | null {
 export function parsePlaylistId(url: string): string | null {
   try {
     const u = new URL(url.trim());
-    const hostname = u.hostname.replace(/^www\./, "");
+    const hostname = u.hostname.replace(/^(www|m)\./, "");
     if (hostname !== "youtube.com") return null;
     return u.searchParams.get("list");
   } catch {
@@ -68,7 +68,7 @@ export function parsePlaylistId(url: string): string | null {
 export function isPlaylistUrl(url: string): boolean {
   try {
     const u = new URL(url.trim());
-    const hostname = u.hostname.replace(/^www\./, "");
+    const hostname = u.hostname.replace(/^(www|m)\./, "");
     return hostname === "youtube.com" && u.searchParams.has("list") && !u.searchParams.has("v");
   } catch {
     return false;

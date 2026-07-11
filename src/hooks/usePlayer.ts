@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLibrary } from "@/contexts/LibraryContext";
-import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem, LoopMode } from "@/types/library";
+import { getLibraryItemId } from "@/lib/mediaItems";
+import type { LibraryItem, VideoItem, PlaylistChannel, PodcastEpisodeItem, LoopMode } from "@/types/library";
 
 declare global {
   interface Window {
@@ -36,12 +37,24 @@ type YouTubePlayer = {
   destroy: () => void;
 };
 
+function isYouTubePlayerReady(player: YouTubePlayer | null): player is YouTubePlayer {
+  return Boolean(
+    player &&
+      typeof player.loadVideoById === "function" &&
+      typeof player.cuePlaylist === "function" &&
+      typeof player.playVideo === "function" &&
+      typeof player.pauseVideo === "function"
+  );
+}
+
+function canCreateYouTubePlayer(): boolean {
+  return typeof window.YT?.Player === "function";
+}
+
 export type PlayerMode = "watch" | "listen";
 
 export function getItemId(item: LibraryItem): string {
-  if (item.type === "video") return (item as VideoItem).ytId;
-  if (item.type === "playlist-channel") return (item as PlaylistChannel).ytPlaylistId;
-  return (item as ChannelItem).channelId;
+  return getLibraryItemId(item);
 }
 
 export function usePlayer(
@@ -54,6 +67,7 @@ export function usePlayer(
   const { updateSettings, updateWatchProgress, getWatchHistoryEntry } = useLibrary();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const onEndedRef = useRef(onEnded);
   useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
 
@@ -62,6 +76,8 @@ export function usePlayer(
 
   const [currentItem, setCurrentItem] = useState<LibraryItem | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [youtubeReady, setYoutubeReady] = useState(false);
   const [progress, setProgress] = useState(0); // 0–1
   const [mode, setMode] = useState<PlayerMode>(initialMode);
   const [loopMode, setLoopModeState] = useState<LoopMode>(initialLoopMode);
@@ -89,6 +105,22 @@ export function usePlayer(
     if (!current) return;
 
     const loop = loopModeRef.current;
+
+    if (current.type === "podcast-episode") {
+      const episode = current as PodcastEpisodeItem;
+      updateWatchProgress({
+        mediaType: "podcast",
+        ytId: episode.episodeId,
+        title: episode.title,
+        channelName: episode.podcastTitle,
+        thumbnail: episode.thumbnail,
+        position: 1,
+        duration: 1,
+        source: episode.watchSource ?? { type: "podcast", feedUrl: episode.podcastFeedUrl, audioUrl: episode.audioUrl },
+      });
+      setPlaying(false);
+      return;
+    }
 
     // playlist-channel: advance with loop-all support (loop-one not applicable)
     if (current.type !== "video") {
@@ -167,12 +199,12 @@ export function usePlayer(
   }, []);
 
   const initPlayer = useCallback(() => {
-    if (!containerRef.current || playerRef.current) return;
+    if (!containerRef.current || playerRef.current || !canCreateYouTubePlayer()) return;
 
     playerRef.current = new window.YT.Player(containerRef.current, {
       playerVars: { autoplay: 1, rel: 0, modestbranding: 1, enablejsapi: 1 },
       events: {
-        onReady: () => {},
+        onReady: () => setYoutubeReady(true),
         onStateChange: (event) => {
           const state = event.data;
           setPlaying(state === window.YT.PlayerState.PLAYING);
@@ -186,10 +218,57 @@ export function usePlayer(
     });
   }, [handleEnded]);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handlePlay = () => setPlaying(true);
+    const handlePause = () => setPlaying(false);
+    const handleAudioError = () => {
+      setPlaying(false);
+      setAudioError("Could not play podcast audio. Check the episode source and try again.");
+    };
+    const handleAudioEnded = () => {
+      handleEnded();
+      onEndedRef.current?.();
+    };
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("error", handleAudioError);
+    audio.addEventListener("ended", handleAudioEnded);
+    return () => {
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("error", handleAudioError);
+      audio.removeEventListener("ended", handleAudioEnded);
+    };
+  }, [handleEnded]);
+
   const saveCurrentProgress = useCallback(() => {
-    const p = playerRef.current;
     const current = currentItemRef.current;
-    if (!p || !current || current.type !== "video") return;
+    if (!current) return;
+
+    if (current.type === "podcast-episode") {
+      const audio = audioRef.current;
+      if (!audio || audio.duration <= 0) return;
+      const episode = current as PodcastEpisodeItem;
+      updateWatchProgress({
+        mediaType: "podcast",
+        ytId: episode.episodeId,
+        title: episode.title,
+        channelName: episode.podcastTitle,
+        thumbnail: episode.thumbnail,
+        position: audio.currentTime,
+        duration: audio.duration,
+        source: episode.watchSource ?? { type: "podcast", feedUrl: episode.podcastFeedUrl, audioUrl: episode.audioUrl },
+      });
+      lastSaveTimeRef.current = Date.now();
+      return;
+    }
+
+    const p = playerRef.current;
+    if (!p || current.type !== "video") return;
 
     try {
       const cur = p.getCurrentTime();
@@ -216,6 +295,20 @@ export function usePlayer(
   useEffect(() => {
     progressIntervalRef.current = setInterval(() => {
       const p = playerRef.current;
+      const current = currentItemRef.current;
+      if (current?.type === "podcast-episode") {
+        const audio = audioRef.current;
+        if (!audio) return;
+        if (audio.duration > 0) {
+          setProgress(audio.currentTime / audio.duration);
+
+          const now = Date.now();
+          if (now - lastSaveTimeRef.current > 10000) {
+            saveCurrentProgress();
+          }
+        }
+        return;
+      }
       if (!p) return;
       try {
         const cur = p.getCurrentTime();
@@ -242,9 +335,14 @@ export function usePlayer(
   // When currentItem changes, load it into the player
   useEffect(() => {
     const p = playerRef.current;
-    if (!p || !currentItem) return;
+    if (!currentItem) return;
 
     if (currentItem.type === "video") {
+      if (!isYouTubePlayerReady(p) || !youtubeReady) {
+        if (!p && canCreateYouTubePlayer()) initPlayer();
+        return;
+      }
+      audioRef.current?.pause();
       const video = currentItem as VideoItem;
       const startSeconds = video.lastPosition ?? 0;
       updateWatchProgress({
@@ -263,19 +361,50 @@ export function usePlayer(
         startSeconds,
       });
     } else if (currentItem.type === "playlist-channel") {
+      if (!isYouTubePlayerReady(p) || !youtubeReady) {
+        if (!p && canCreateYouTubePlayer()) initPlayer();
+        return;
+      }
+      audioRef.current?.pause();
       p.cuePlaylist({
         list: (currentItem as PlaylistChannel).ytPlaylistId,
         listType: "playlist",
       });
       p.playVideo();
+    } else if (currentItem.type === "podcast-episode") {
+      const episode = currentItem as PodcastEpisodeItem;
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (typeof playerRef.current?.pauseVideo === "function") playerRef.current.pauseVideo();
+      audio.src = episode.audioUrl;
+      audio.currentTime = episode.lastPosition ?? 0;
+      updateWatchProgress({
+        mediaType: "podcast",
+        ytId: episode.episodeId,
+        title: episode.title,
+        channelName: episode.podcastTitle,
+        thumbnail: episode.thumbnail,
+        position: episode.lastPosition ?? 0,
+        duration: 0,
+        lastWatchedRatio: episode.lastWatchedRatio,
+        preferInputProgress: true,
+        source: episode.watchSource ?? { type: "podcast", feedUrl: episode.podcastFeedUrl, audioUrl: episode.audioUrl },
+      });
+      void audio.play().catch(() => setPlaying(false));
     }
-    // ChannelItem: not directly playable — opened via browse modal
-  }, [currentItem, updateWatchProgress]);
+    // ChannelItem and PodcastItem are not directly playable — opened via browse modals.
+  }, [currentItem, initPlayer, updateWatchProgress, youtubeReady]);
 
   const play = useCallback(
     (item: LibraryItem) => {
       saveCurrentProgress();
-      const historyEntry = item.type === "video" ? getWatchHistoryEntry((item as VideoItem).ytId) : undefined;
+      setAudioError(null);
+      const historyEntry =
+        item.type === "video"
+          ? getWatchHistoryEntry((item as VideoItem).ytId)
+          : item.type === "podcast-episode"
+          ? getWatchHistoryEntry((item as PodcastEpisodeItem).episodeId, "podcast")
+          : undefined;
       const itemToPlay =
         item.type === "video" && typeof (item as VideoItem).lastPosition !== "number"
           ? {
@@ -283,8 +412,19 @@ export function usePlayer(
               lastPosition: historyEntry?.lastPosition,
               lastWatchedRatio: historyEntry?.lastWatchedRatio,
             }
+          : item.type === "podcast-episode" && typeof (item as PodcastEpisodeItem).lastPosition !== "number"
+          ? {
+              ...(item as PodcastEpisodeItem),
+              lastPosition: historyEntry?.lastPosition,
+              lastWatchedRatio: historyEntry?.lastWatchedRatio,
+            }
           : item;
-      if (!window.YT) {
+      if (itemToPlay.type === "podcast-episode") {
+        resetProgressForItem();
+        setCurrentItem(itemToPlay);
+        return;
+      }
+      if (!canCreateYouTubePlayer()) {
         window.onYouTubeIframeAPIReady = () => {
           initPlayer();
           resetProgressForItem();
@@ -300,13 +440,32 @@ export function usePlayer(
   );
 
   const pause = useCallback(() => {
+    if (currentItemRef.current?.type === "podcast-episode") {
+      audioRef.current?.pause();
+      setPlaying(false);
+      saveCurrentProgress();
+      return;
+    }
     playerRef.current?.pauseVideo();
     saveCurrentProgress();
   }, [saveCurrentProgress]);
 
-  const resume = useCallback(() => playerRef.current?.playVideo(), []);
+  const resume = useCallback(() => {
+    if (currentItemRef.current?.type === "podcast-episode") {
+      void audioRef.current?.play().catch(() => setPlaying(false));
+      return;
+    }
+    playerRef.current?.playVideo();
+  }, []);
 
   const seek = useCallback((ratio: number) => {
+    if (currentItemRef.current?.type === "podcast-episode") {
+      const audio = audioRef.current;
+      if (!audio || audio.duration <= 0) return;
+      audio.currentTime = ratio * audio.duration;
+      setProgress(ratio);
+      return;
+    }
     const p = playerRef.current;
     if (!p) return;
     try {
@@ -318,6 +477,12 @@ export function usePlayer(
   }, []);
 
   const seekBackward = useCallback(() => {
+    if (currentItemRef.current?.type === "podcast-episode") {
+      const audio = audioRef.current;
+      if (!audio || audio.duration <= 0) return;
+      audio.currentTime = Math.max(0, audio.currentTime - 10);
+      return;
+    }
     const p = playerRef.current;
     if (!p) return;
     try {
@@ -330,6 +495,12 @@ export function usePlayer(
   }, []);
 
   const seekForward = useCallback(() => {
+    if (currentItemRef.current?.type === "podcast-episode") {
+      const audio = audioRef.current;
+      if (!audio || audio.duration <= 0) return;
+      audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+      return;
+    }
     const p = playerRef.current;
     if (!p) return;
     try {
@@ -342,6 +513,7 @@ export function usePlayer(
   }, []);
 
   const skipNext = useCallback(() => {
+    if (currentItem?.type === "podcast-episode") return;
     if (currentItem?.type !== "video") {
       playerRef.current?.nextVideo();
       return;
@@ -381,12 +553,14 @@ export function usePlayer(
     setLoopMode(next);
   }, [setLoopMode]);
 
-  const canSeekFixedStep = currentItem?.type === "video";
+  const canSeekFixedStep = currentItem?.type === "video" || currentItem?.type === "podcast-episode";
 
   return {
     containerRef,
+    audioRef,
     currentItem,
     playing,
+    audioError,
     progress,
     mode,
     loopMode,

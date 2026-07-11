@@ -1,6 +1,8 @@
 export type WatchHistorySource = {
-  type: "library" | "channel" | "history" | "unknown";
+  type: "library" | "channel" | "podcast" | "history" | "unknown";
   channelId?: string;
+  feedUrl?: string;
+  audioUrl?: string;
 };
 
 export type VideoItem = {
@@ -36,9 +38,38 @@ export type ChannelItem = {
   addedAt: number;
 };
 
-export type LibraryItem = VideoItem | PlaylistChannel | ChannelItem;
+export type PodcastItem = {
+  type: "podcast";
+  feedUrl: string;
+  title: string;
+  author: string;
+  thumbnail: string;
+  episodeCount: number;
+  tags: string[];
+  addedAt: number;
+};
+
+export type PodcastEpisodeItem = {
+  type: "podcast-episode";
+  episodeId: string;
+  podcastFeedUrl: string;
+  title: string;
+  podcastTitle: string;
+  audioUrl: string;
+  thumbnail: string;
+  publishedAt: string;
+  duration?: string;
+  tags: string[];
+  addedAt: number;
+  lastPosition?: number;
+  lastWatchedRatio?: number;
+  watchSource?: WatchHistorySource;
+};
+
+export type LibraryItem = VideoItem | PlaylistChannel | ChannelItem | PodcastItem | PodcastEpisodeItem;
 
 export type WatchHistoryItem = {
+  mediaType?: "youtube" | "podcast";
   ytId: string;
   title: string;
   channelName: string;
@@ -51,6 +82,7 @@ export type WatchHistoryItem = {
 };
 
 export type WatchProgressInput = {
+  mediaType?: "youtube" | "podcast";
   ytId: string;
   title: string;
   channelName: string;

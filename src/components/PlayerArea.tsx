@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { usePlayer, getItemId } from "@/hooks/usePlayer";
 import type { Layout } from "@/hooks/useLayout";
-import type { LibraryItem, VideoItem } from "@/types/library";
+import type { LibraryItem, PodcastEpisodeItem } from "@/types/library";
 
 type PlayerAreaProps = {
   currentItem: LibraryItem | null;
@@ -24,8 +24,10 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
   const {
     containerRef,
+    audioRef,
     currentItem: playerCurrentItem,
     playing,
+    audioError,
     progress,
     mode,
     loopMode,
@@ -78,6 +80,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
   const isListen = mode === "listen";
   const displayItem = playerCurrentItem ?? currentItem;
+  const isPodcastEpisode = displayItem?.type === "podcast-episode";
   const mobileTitleWrapStyle = {
     fontSize: "13px",
     color: "var(--text)",
@@ -144,10 +147,43 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
           style={{
             width: "100%",
             height: "100%",
-            opacity: isListen ? 0 : 1,
+            opacity: isListen || isPodcastEpisode ? 0 : 1,
             transition: "opacity 0.3s",
           }}
         />
+        <audio ref={audioRef} preload="metadata" />
+
+        {isPodcastEpisode && !isListen && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(180deg, rgba(0,0,0,0.86), rgba(0,0,0,0.94))",
+              padding: "24px",
+              gap: "14px",
+            }}
+          >
+            <PodcastArtwork item={displayItem as PodcastEpisodeItem} size={layout === "phone" ? 160 : 260} />
+            {audioError && (
+              <div
+                role="alert"
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "13px",
+                  textAlign: "center",
+                  maxWidth: "360px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {audioError}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Placeholder when nothing is playing */}
         {!displayItem && (
@@ -236,16 +272,14 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
           {layout === "phone" ? (
             <div style={{ padding: "8px 16px" }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
-                {(displayItem as VideoItem).thumbnail && (
-                  <div style={{ position: "relative", width: 44, height: 25, borderRadius: "3px", overflow: "hidden", flexShrink: 0, marginTop: "2px" }}>
-                    <Image src={(displayItem as VideoItem).thumbnail} alt={displayItem.title} fill style={{ objectFit: "cover" }} />
-                  </div>
-                )}
+                <NowPlayingThumbnail item={displayItem} width={44} height={displayItem.type === "podcast-episode" ? 44 : 25} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={mobileTitleWrapStyle}>
                     {displayItem.title}
                   </div>
-                  {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                  {displayItem.type === "podcast-episode" ? (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
+                  ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
                     <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                       {displayItem.channelName} ↗
                     </button>
@@ -282,16 +316,14 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
           ) : (
             /* Tablet + desktop: single-row layout */
             <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px" }}>
-              {(displayItem as VideoItem).thumbnail && (
-                <div style={{ position: "relative", width: 48, height: 27, borderRadius: "3px", overflow: "hidden", flexShrink: 0 }}>
-                  <Image src={(displayItem as VideoItem).thumbnail} alt={displayItem.title} fill style={{ objectFit: "cover" }} />
-                </div>
-              )}
+              <NowPlayingThumbnail item={displayItem} width={48} height={displayItem.type === "podcast-episode" ? 48 : 27} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {displayItem.title}
                 </div>
-                {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                {displayItem.type === "podcast-episode" ? (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
+                ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
                   <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                     {displayItem.channelName} ↗
                   </button>
@@ -345,8 +377,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             zIndex: 150,
           }}
         >
-          {/* Progress bar — videos only, touch-target wrapper on phone */}
-          {displayItem.type === "video" && (
+          {/* Progress bar — touch-target wrapper on phone */}
+          {(displayItem.type === "video" || displayItem.type === "podcast-episode") && (
             <div
               style={{
                 padding: layout === "phone" ? "21px 0" : "0",
@@ -380,7 +412,9 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                   <div style={{ ...mobileTitleWrapStyle, fontWeight: 400 }}>
                     {displayItem.title}
                   </div>
-                  {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                  {displayItem.type === "podcast-episode" ? (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
+                  ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
                     <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                       {displayItem.channelName} ↗
                     </button>
@@ -420,7 +454,9 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                 <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {displayItem.title}
                 </div>
-                {"channelName" in displayItem && (channelContext && onOpenChannel ? (
+                {displayItem.type === "podcast-episode" ? (
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
+                ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
                   <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                     {displayItem.channelName} ↗
                   </button>
@@ -451,6 +487,46 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               </div>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NowPlayingThumbnail({ item, width, height }: { item: LibraryItem; width: number; height: number }) {
+  const thumbnail = item.thumbnail;
+  if (!thumbnail) return null;
+
+  return (
+    <div style={{ position: "relative", width, height, borderRadius: "3px", overflow: "hidden", flexShrink: 0, marginTop: "2px", background: "var(--border)" }}>
+      {item.type === "podcast-episode" || item.type === "podcast" ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={thumbnail} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <Image src={thumbnail} alt={item.title} fill style={{ objectFit: "cover" }} />
+      )}
+    </div>
+  );
+}
+
+function PodcastArtwork({ item, size }: { item: PodcastEpisodeItem; size: number }) {
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "8px",
+        overflow: "hidden",
+        background: "var(--surface-2)",
+        boxShadow: "0 20px 80px rgba(0,0,0,0.45)",
+      }}
+    >
+      {item.thumbnail ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={item.thumbnail} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      ) : (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "42px" }}>
+          ♪
         </div>
       )}
     </div>

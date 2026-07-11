@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
-import type { ChannelItem, LibraryData, WatchHistoryItem } from "@/types/library";
+import type { ChannelItem, LibraryData, PodcastItem, WatchHistoryItem } from "@/types/library";
+import type { PodcastFeed } from "@/lib/podcastRss";
 
 const STORAGE_KEY = "myvidtv_library";
 
@@ -30,6 +31,51 @@ export function channelItem(overrides: Partial<ChannelItem> = {}): ChannelItem {
   };
 }
 
+export function podcastItem(overrides: Partial<PodcastItem> = {}): PodcastItem {
+  return {
+    type: "podcast",
+    feedUrl: "https://example.test/feed.xml",
+    title: "Seeded Podcast",
+    author: "Seeded Host",
+    thumbnail: "https://podcast-cdn.example.test/artwork.jpg",
+    episodeCount: 1,
+    tags: [],
+    addedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export function podcastFeed(overrides: Partial<PodcastFeed> = {}): PodcastFeed {
+  return {
+    feedUrl: "https://example.test/feed.xml",
+    title: "Seeded Podcast",
+    author: "Seeded Host",
+    thumbnail: "https://podcast-cdn.example.test/artwork.jpg",
+    episodeCount: 1,
+    episodes: [
+      {
+        episodeId: "seeded-episode-1",
+        title: "Seeded Podcast Episode",
+        audioUrl: "https://podcast-cdn.example.test/audio.mp3",
+        thumbnail: "https://podcast-cdn.example.test/episode.jpg",
+        publishedAt: "2026-07-11T00:00:00.000Z",
+        duration: "12:34",
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export async function mockPodcastFeed(page: Page, feed: PodcastFeed, status = 200): Promise<void> {
+  await page.route("**/api/podcast-feed?**", async (route) => {
+    await route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(status >= 400 ? { error: "Podcast feed failed" } : feed),
+    });
+  });
+}
+
 export async function seedLibrary(page: Page, data: Partial<LibraryData>): Promise<void> {
   const library: LibraryData = {
     items: [],
@@ -54,4 +100,8 @@ export async function seedLibrary(page: Page, data: Partial<LibraryData>): Promi
     { key: STORAGE_KEY, value: JSON.stringify(library) }
   );
   await page.reload();
+}
+
+export async function readLibrary(page: Page): Promise<LibraryData> {
+  return await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? "{}"), STORAGE_KEY) as LibraryData;
 }

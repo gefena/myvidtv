@@ -1,4 +1,5 @@
 import type { WatchHistoryItem, WatchProgressInput } from "@/types/library";
+import { getHistoryKey, getProgressKey } from "@/lib/mediaItems";
 
 export const WATCH_HISTORY_LIMIT = 50;
 export const WATCH_HISTORY_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
@@ -16,7 +17,8 @@ export function upsertWatchHistory(
   input: WatchProgressInput,
   now = Date.now()
 ): WatchHistoryItem[] {
-  const existing = history.find((entry) => entry.ytId === input.ytId);
+  const inputMediaType = input.mediaType ?? "youtube";
+  const existing = history.find((entry) => historyKey(entry) === getProgressKey(inputMediaType, input.ytId));
   const progress = calculateStoredProgress(input.position, input.duration);
   const hasProgress = input.duration > 0;
   const inputPosition = Number.isFinite(input.position) && input.position > 0 ? Math.floor(input.position) : 0;
@@ -33,6 +35,7 @@ export function upsertWatchHistory(
     : seedFromInput ? inputRatio : existing?.lastWatchedRatio ?? inputRatio;
 
   const nextEntry: WatchHistoryItem = {
+    mediaType: inputMediaType,
     ytId: input.ytId,
     title: input.title,
     channelName: input.channelName,
@@ -46,19 +49,24 @@ export function upsertWatchHistory(
 
   return pruneWatchHistory([
     nextEntry,
-    ...history.filter((entry) => entry.ytId !== input.ytId),
+    ...history.filter((entry) => historyKey(entry) !== getProgressKey(inputMediaType, input.ytId)),
   ], now);
 }
 
 export function mergeWatchHistory(current: WatchHistoryItem[], incoming: WatchHistoryItem[], now?: number): WatchHistoryItem[] {
   const byId = new Map<string, WatchHistoryItem>();
   [...current, ...incoming].forEach((entry) => {
-    const existing = byId.get(entry.ytId);
+    const key = historyKey(entry);
+    const existing = byId.get(key);
     if (!existing || entry.lastWatchedAt > existing.lastWatchedAt) {
-      byId.set(entry.ytId, entry);
+      byId.set(key, entry);
     }
   });
   return pruneWatchHistory(Array.from(byId.values()), now);
+}
+
+export function historyKey(entry: Pick<WatchHistoryItem, "mediaType" | "ytId">): string {
+  return getHistoryKey(entry);
 }
 
 export function calculateStoredProgress(position: number, duration: number): {

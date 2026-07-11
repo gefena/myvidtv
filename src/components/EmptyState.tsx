@@ -74,7 +74,7 @@ export function EmptyState({ onAdd, hasArchived, onViewArchive, onImport }: Empt
             margin: "0 0 20px",
           }}
         >
-          {hasArchived ? "Your library is empty." : "Add a YouTube link to start watching."}
+          {hasArchived ? "Your library is empty." : "Add a YouTube or podcast link to start watching."}
         </p>
         <form
           onSubmit={handleSubmit}
@@ -84,7 +84,7 @@ export function EmptyState({ onAdd, hasArchived, onViewArchive, onImport }: Empt
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="Paste a YouTube link..."
+            placeholder="Paste a YouTube or podcast link..."
             style={{
               flex: 1,
               background: "var(--surface)",

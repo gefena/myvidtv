@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { PREDEFINED_TAGS } from "@/lib/constants";
+import { getHistoryBadge, getHistoryKey, getHistoryMediaType, getLibraryItemId, getLibraryItemSubtitle } from "@/lib/mediaItems";
 import type { Layout } from "@/hooks/useLayout";
-import type { LibraryItem, VideoItem, PlaylistChannel, ChannelItem, WatchHistoryItem } from "@/types/library";
+import type { LibraryItem, VideoItem, ChannelItem, PodcastItem, WatchHistoryItem } from "@/types/library";
 
 type LibraryPanelProps = {
   activeTag: string;
@@ -21,13 +22,12 @@ type LibraryPanelProps = {
   onViewChange: (view: "library" | "archive" | "history") => void;
   layout?: Layout;
   onBrowseChannel: (item: ChannelItem) => void;
+  onBrowsePodcast: (item: PodcastItem) => void;
   onSelectHistory: (item: WatchHistoryItem) => void;
 };
 
 function itemId(item: LibraryItem) {
-  if (item.type === "video") return item.ytId;
-  if (item.type === "playlist-channel") return item.ytPlaylistId;
-  return item.channelId;
+  return getLibraryItemId(item);
 }
 
 export function LibraryPanel({
@@ -42,6 +42,7 @@ export function LibraryPanel({
   onViewChange,
   layout = "desktop",
   onBrowseChannel,
+  onBrowsePodcast,
   onSelectHistory,
 }: LibraryPanelProps) {
   const {
@@ -316,7 +317,7 @@ export function LibraryPanel({
           <AnimatePresence mode="popLayout">
             {watchHistory.map((entry) => (
               <motion.div
-                key={entry.ytId}
+                key={getHistoryKey(entry)}
                 layout
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -326,9 +327,12 @@ export function LibraryPanel({
                 <HistoryCard
                   entry={entry}
                   isMobile={isTouch}
-                  isActive={currentItem?.type === "video" && (currentItem as VideoItem).ytId === entry.ytId}
+                  isActive={
+                    (currentItem?.type === "video" && getHistoryMediaType(entry) === "youtube" && (currentItem as VideoItem).ytId === entry.ytId) ||
+                    (currentItem?.type === "podcast-episode" && entry.mediaType === "podcast" && currentItem.episodeId === entry.ytId)
+                  }
                   onSelect={() => onSelectHistory(entry)}
-                  onRemove={() => removeWatchHistoryEntry(entry.ytId)}
+                  onRemove={() => removeWatchHistoryEntry(entry.ytId, getHistoryMediaType(entry))}
                 />
               </motion.div>
             ))}
@@ -356,6 +360,8 @@ export function LibraryPanel({
                       if (isArchive) return;
                       if (item.type === "channel") {
                         onBrowseChannel(item as ChannelItem);
+                      } else if (item.type === "podcast") {
+                        onBrowsePodcast(item as PodcastItem);
                       } else {
                         onSelect(item);
                       }
@@ -430,7 +436,16 @@ function HistoryCard({
       <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
         <div style={{ position: "relative", width: 80, height: 45, flexShrink: 0, borderRadius: "4px", overflow: "hidden", background: "var(--border)" }}>
           {entry.thumbnail && (
-            <Image src={entry.thumbnail} alt={entry.title} fill style={{ objectFit: "cover" }} />
+            getHistoryMediaType(entry) === "podcast" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={entry.thumbnail}
+                alt={entry.title}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            ) : (
+              <Image src={entry.thumbnail} alt={entry.title} fill style={{ objectFit: "cover" }} />
+            )
           )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -449,6 +464,9 @@ function HistoryCard({
             {entry.title}
           </div>
           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{entry.channelName}</div>
+          <div style={{ marginTop: "4px", display: "inline-flex", background: "var(--chip)", borderRadius: "3px", color: "var(--violet-soft)", fontSize: "9px", fontWeight: 600, padding: "1px 5px", letterSpacing: "0.03em" }}>
+            {getHistoryBadge(entry)}
+          </div>
         </div>
         <button
           onClick={(e) => {
@@ -519,19 +537,11 @@ function LibraryCard({
   const [deleteTooltip, setDeleteTooltip] = useState(false);
   const [tagsTooltip, setTagsTooltip] = useState(false);
 
-  const itemId =
-    item.type === "video" ? (item as VideoItem).ytId :
-    item.type === "playlist-channel" ? (item as PlaylistChannel).ytPlaylistId :
-    (item as ChannelItem).channelId;
+  const itemId = getLibraryItemId(item);
 
   const thumbnail = item.thumbnail;
   const title = item.title;
-  const sub =
-    item.type === "video"
-      ? (item as VideoItem).channelName
-      : item.type === "playlist-channel"
-      ? `${(item as PlaylistChannel).videoCount > 0 ? `${(item as PlaylistChannel).videoCount} videos` : "Playlist"}`
-      : "Channel";
+  const sub = getLibraryItemSubtitle(item);
 
   const handleEditOpen = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -612,7 +622,10 @@ function LibraryCard({
       <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
         {/* Thumbnail */}
         <div style={{ position: "relative", width: 80, height: 45, flexShrink: 0, borderRadius: "4px", overflow: "hidden" }}>
-          {thumbnail ? (
+          {thumbnail && (item.type === "podcast" || item.type === "podcast-episode") ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={thumbnail} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : thumbnail ? (
             <Image src={thumbnail} alt={title} fill style={{ objectFit: "cover" }} />
           ) : (
             <div style={{ width: "100%", height: "100%", background: "var(--border)" }} />
@@ -634,6 +647,16 @@ function LibraryCard({
               letterSpacing: "0.03em",
             }}>
               CH
+            </div>
+          )}
+          {item.type === "podcast" && (
+            <div style={{
+              position: "absolute", bottom: 0, right: 0,
+              background: "rgba(16,185,129,0.85)", fontSize: "9px", color: "#fff",
+              padding: "1px 5px", borderTopLeftRadius: "3px", fontWeight: 600,
+              letterSpacing: "0.03em",
+            }}>
+              POD
             </div>
           )}
         </div>

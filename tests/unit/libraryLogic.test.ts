@@ -55,6 +55,18 @@ describe("watch history logic", () => {
     expect(merged.find((entry) => entry.ytId === "same")?.lastWatchedAt).toBe(now - 50);
   });
 
+  it("merges podcast and YouTube entries with the same raw ID independently", () => {
+    const now = 2_000_000_000_000;
+    const current = [historyEntry("same", now - 100)];
+    const incoming = [{ ...historyEntry("same", now - 50), mediaType: "podcast" as const, channelName: "Podcast" }];
+
+    const merged = mergeWatchHistory(current, incoming, now);
+
+    expect(merged).toHaveLength(2);
+    expect(merged.map((entry) => entry.mediaType ?? "youtube")).toEqual(["podcast", "youtube"]);
+  });
+
+
   it("resets stored progress at the inclusive 95 percent completion threshold", () => {
     expect(calculateStoredProgress(95, 100)).toEqual({ lastPosition: 0, lastWatchedRatio: 0 });
     expect(calculateStoredProgress(94, 100)).toEqual({ lastPosition: 94, lastWatchedRatio: 0.94 });
@@ -83,6 +95,15 @@ describe("upsertWatchHistory", () => {
     expect(result[0]?.firstWatchedAt).toBe(earlier - 100);
     expect(result[0]?.lastWatchedAt).toBe(later);
     expect(result[0]?.lastPosition).toBe(50);
+  });
+
+  it("keeps podcast and YouTube history separate when raw IDs match", () => {
+    const now = 2_000_000_000_000;
+    const youtube = upsertWatchHistory([], { ytId: "same-id", title: "Video", channelName: "Channel", thumbnail: "", position: 10, duration: 100 }, now);
+    const result = upsertWatchHistory(youtube, { mediaType: "podcast", ytId: "same-id", title: "Episode", channelName: "Podcast", thumbnail: "", position: 20, duration: 100 }, now + 1);
+
+    expect(result).toHaveLength(2);
+    expect(result.map((entry) => entry.mediaType ?? "youtube")).toEqual(["podcast", "youtube"]);
   });
 
   it("seeds progress from input when duration is zero and preferInputProgress is true", () => {

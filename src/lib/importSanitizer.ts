@@ -39,15 +39,37 @@ function sanitizeItems(items: unknown): unknown[] {
       if (typeof i.ytPlaylistId !== "string" || !i.ytPlaylistId) return [];
     } else if (i.type === "channel") {
       if (typeof i.channelId !== "string" || !i.channelId) return [];
+    } else if (i.type === "podcast") {
+      if (typeof i.feedUrl !== "string" || !i.feedUrl || !isHttpUrl(i.feedUrl)) return [];
     } else {
       return [];
     }
     return [{
       ...i,
       tags: Array.isArray(i.tags) ? i.tags : [],
-      thumbnail: sanitizeThumbnail(i.thumbnail),
+      thumbnail: i.type === "podcast" ? sanitizeHttpImage(i.thumbnail) : sanitizeThumbnail(i.thumbnail),
     }];
   });
+}
+
+function isHttpUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url);
+    return protocol === "https:" || protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeHttpImage(url: unknown): string {
+  if (typeof url !== "string") return "";
+  try {
+    const { protocol } = new URL(url);
+    if (protocol !== "https:" && protocol !== "http:") return "";
+    return url;
+  } catch {
+    return "";
+  }
 }
 
 function sanitizeThumbnail(url: unknown): string {
@@ -87,17 +109,20 @@ function sanitizeWatchHistory(entries: unknown[]): WatchHistoryItem[] {
       ? e.source as Record<string, unknown>
       : null;
     const sourceType = source?.type;
+    const mediaType = e.mediaType === "podcast" ? "podcast" : "youtube";
     const validSourceType =
       sourceType === "library" ||
       sourceType === "channel" ||
+      sourceType === "podcast" ||
       sourceType === "history" ||
       sourceType === "unknown";
 
     return [{
+      mediaType,
       ytId: e.ytId,
       title: sanitizeString(e.title, 300),
       channelName: sanitizeString(e.channelName, 160),
-      thumbnail: sanitizeThumbnail(e.thumbnail),
+      thumbnail: mediaType === "podcast" ? sanitizeHttpImage(e.thumbnail) : sanitizeThumbnail(e.thumbnail),
       lastPosition: Math.floor(numberOrZero(e.lastPosition)),
       lastWatchedRatio: ratioOrZero(e.lastWatchedRatio),
       firstWatchedAt: numberOrZero(e.firstWatchedAt) || lastWatchedAt,
@@ -107,6 +132,12 @@ function sanitizeWatchHistory(entries: unknown[]): WatchHistoryItem[] {
             type: sourceType,
             ...(typeof source?.channelId === "string" && source.channelId
               ? { channelId: source.channelId }
+              : {}),
+            ...(typeof source?.feedUrl === "string" && source.feedUrl
+              ? { feedUrl: source.feedUrl }
+              : {}),
+            ...(typeof source?.audioUrl === "string" && source.audioUrl
+              ? { audioUrl: source.audioUrl }
               : {}),
           }
         : undefined,

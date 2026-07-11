@@ -12,9 +12,11 @@ import { LibraryPanel } from "./LibraryPanel";
 import { AddFlow } from "./AddFlow";
 import { ImportConfirm } from "./ImportConfirm";
 import { ChannelBrowseModal } from "./ChannelBrowseModal";
+import { PodcastBrowseModal } from "./PodcastBrowseModal";
 import { importLibrary as parseImportFile } from "@/lib/exportImport";
-import type { LibraryItem, LibraryData, ChannelItem, VideoItem, WatchHistoryItem } from "@/types/library";
+import type { LibraryItem, LibraryData, ChannelItem, PodcastItem, PodcastEpisodeItem, VideoItem, WatchHistoryItem } from "@/types/library";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
+import type { PodcastEpisode } from "@/lib/podcastRss";
 
 export function AppShell() {
   const { items, archivedItems, watchHistory, settings, updateSettings, hydrated, exportLibrary, getWatchHistoryEntry } = useLibrary();
@@ -31,6 +33,7 @@ export function AppShell() {
   const [pendingImportData, setPendingImportData] = useState<LibraryData | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [browseChannelItem, setBrowseChannelItem] = useState<ChannelItem | null>(null);
+  const [browsePodcastItem, setBrowsePodcastItem] = useState<PodcastItem | null>(null);
   const [channelContext, setChannelContext] = useState<{ channelId: string; title: string } | null>(null);
   const [ended, setEnded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +69,57 @@ export function AppShell() {
     setBrowseChannelItem(null);
   }, [getWatchHistoryEntry, isMobile]);
 
+  const handlePodcastEpisodeSelect = useCallback((episode: PodcastEpisode, podcast: PodcastItem) => {
+    const historyEntry = getWatchHistoryEntry(episode.episodeId, "podcast");
+    const transient: PodcastEpisodeItem = {
+      type: "podcast-episode",
+      episodeId: episode.episodeId,
+      podcastFeedUrl: podcast.feedUrl,
+      title: episode.title,
+      podcastTitle: podcast.title,
+      audioUrl: episode.audioUrl,
+      thumbnail: episode.thumbnail || podcast.thumbnail,
+      publishedAt: episode.publishedAt,
+      duration: episode.duration,
+      tags: [],
+      addedAt: 0,
+      lastPosition: historyEntry?.lastPosition,
+      lastWatchedRatio: historyEntry?.lastWatchedRatio,
+      watchSource: { type: "podcast", feedUrl: podcast.feedUrl, audioUrl: episode.audioUrl },
+    };
+    setChannelContext(null);
+    setEnded(false);
+    setCurrentItem(transient);
+    if (isMobile) setLibrarySheetOpen(false);
+    setBrowsePodcastItem(null);
+  }, [getWatchHistoryEntry, isMobile]);
+
   const handleHistorySelect = useCallback((entry: WatchHistoryItem) => {
+    if (entry.mediaType === "podcast") {
+      const source = entry.source?.type === "podcast" ? entry.source : undefined;
+      const transient: PodcastEpisodeItem = {
+        type: "podcast-episode",
+        episodeId: entry.ytId,
+        podcastFeedUrl: source?.feedUrl ?? "",
+        title: entry.title,
+        podcastTitle: entry.channelName,
+        audioUrl: source?.audioUrl ?? "",
+        thumbnail: entry.thumbnail,
+        publishedAt: "",
+        tags: [],
+        addedAt: 0,
+        lastPosition: entry.lastPosition,
+        lastWatchedRatio: entry.lastWatchedRatio,
+        watchSource: source ?? { type: "history" },
+      };
+      if (!transient.audioUrl) return;
+      setCurrentItem(transient);
+      setChannelContext(null);
+      setEnded(false);
+      if (isMobile) setLibrarySheetOpen(false);
+      return;
+    }
+
     const sourceChannelId = entry.source?.type === "channel" ? entry.source.channelId : undefined;
     const sourceChannel = sourceChannelId
       ? [...items, ...archivedItems].find((item): item is ChannelItem =>
@@ -261,8 +314,8 @@ export function AppShell() {
                       <span>Library</span>
                     </button>
                   </>
-                ) : currentItem && currentItem.type === "video" ? (
-                  /* Styled minibar — shows current video info when playing */
+                ) : currentItem && (currentItem.type === "video" || currentItem.type === "podcast-episode") ? (
+                  /* Styled minibar — shows current media info when playing */
                   <>
                     <button
                       onClick={() => setLibrarySheetOpen(true)}
@@ -281,22 +334,27 @@ export function AppShell() {
                         textAlign: "left",
                       }}
                     >
-                      {(currentItem as VideoItem).thumbnail && (
-                        <div style={{ position: "relative", width: 24, height: 14, borderRadius: "2px", overflow: "hidden", flexShrink: 0 }}>
-                          <Image
-                            src={(currentItem as VideoItem).thumbnail}
-                            alt={(currentItem as VideoItem).title}
-                            fill
-                            style={{ objectFit: "cover" }}
-                          />
+                      {currentItem.thumbnail && (
+                        <div style={{ position: "relative", width: 24, height: currentItem.type === "podcast-episode" ? 24 : 14, borderRadius: "2px", overflow: "hidden", flexShrink: 0, background: "var(--border)" }}>
+                          {currentItem.type === "podcast-episode" ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={currentItem.thumbnail} alt={currentItem.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <Image
+                              src={currentItem.thumbnail}
+                              alt={currentItem.title}
+                              fill
+                              style={{ objectFit: "cover" }}
+                            />
+                          )}
                         </div>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3 }}>
-                          {(currentItem as VideoItem).title}
+                          {currentItem.title}
                         </div>
                         <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {(currentItem as VideoItem).channelName}
+                          {currentItem.type === "podcast-episode" ? currentItem.podcastTitle : currentItem.channelName}
                         </div>
                       </div>
                     </button>
@@ -491,6 +549,7 @@ export function AppShell() {
                         onViewChange={setLibraryView}
                         layout="phone"
                         onBrowseChannel={(item) => { setBrowseChannelItem(item); setLibrarySheetOpen(false); }}
+                        onBrowsePodcast={(item) => { setBrowsePodcastItem(item); setLibrarySheetOpen(false); }}
                         onSelectHistory={handleHistorySelect}
                       />
                     </div>
@@ -518,6 +577,7 @@ export function AppShell() {
                 }}
                 layout="tablet"
                 onBrowseChannel={setBrowseChannelItem}
+                onBrowsePodcast={setBrowsePodcastItem}
                 onSelectHistory={handleHistorySelect}
               />
             </div>
@@ -550,6 +610,7 @@ export function AppShell() {
                         if (next === "library") setShowArchive(false);
                       }}
                       onBrowseChannel={setBrowseChannelItem}
+                      onBrowsePodcast={setBrowsePodcastItem}
                       onSelectHistory={handleHistorySelect}
                     />
                   </motion.div>
@@ -586,6 +647,15 @@ export function AppShell() {
           watchHistory={watchHistory}
           onPlay={(video: ChannelFeedVideo) => handleChannelVideoSelect(video, browseChannelItem)}
           onClose={() => setBrowseChannelItem(null)}
+        />
+      )}
+
+      {browsePodcastItem && (
+        <PodcastBrowseModal
+          podcast={browsePodcastItem}
+          watchHistory={watchHistory}
+          onPlay={(episode: PodcastEpisode) => handlePodcastEpisodeSelect(episode, browsePodcastItem)}
+          onClose={() => setBrowsePodcastItem(null)}
         />
       )}
 

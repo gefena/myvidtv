@@ -244,7 +244,7 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
                     </div>
                   </div>
                   {(() => {
-                    const ratio = watchHistory.find((entry) => entry.ytId === video.ytId)?.lastWatchedRatio ?? 0;
+                    const ratio = watchHistory.find((entry) => (entry.mediaType ?? "youtube") === "youtube" && entry.ytId === video.ytId)?.lastWatchedRatio ?? 0;
                     return ratio > 0 ? (
                       <div style={{ marginTop: "6px", height: "2px", background: "var(--border)", borderRadius: "1px", width: "100%" }}>
                         <div

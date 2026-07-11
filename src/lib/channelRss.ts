@@ -43,8 +43,8 @@ type ApiErrorBody = {
 export function isChannelUrl(url: string): boolean {
   try {
     const u = new URL(url.trim());
-    const hostname = u.hostname.replace(/^www\./, "");
-    if (hostname !== "youtube.com") return false;
+    const hostname = u.hostname.replace(/^(www|m)\./, "");
+    if (hostname !== "youtube.com" && hostname !== "youtube-nocookie.com") return false;
     return (
       u.pathname.startsWith("/channel/") ||
       u.pathname.startsWith("/@") ||

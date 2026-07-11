@@ -16,12 +16,14 @@ import type {
   VideoItem,
   PlaylistChannel,
   ChannelItem,
+  PodcastItem,
   WatchHistoryItem,
   WatchProgressInput,
 } from "@/types/library";
 import { STORAGE_KEY, DEFAULT_SETTINGS } from "@/lib/constants";
 import { exportLibrary as exportLibraryFile } from "@/lib/exportImport";
-import { mergeWatchHistory, pruneWatchHistory, upsertWatchHistory, calculateStoredProgress } from "@/lib/libraryLogic";
+import { historyKey, mergeWatchHistory, pruneWatchHistory, upsertWatchHistory, calculateStoredProgress } from "@/lib/libraryLogic";
+import { getLibraryItemId } from "@/lib/mediaItems";
 
 const DEFAULT_LIBRARY: LibraryData = {
   items: [],
@@ -58,9 +60,7 @@ function writeStorage(data: LibraryData): boolean {
 }
 
 function getItemId(item: LibraryItem): string {
-  if (item.type === "video") return item.ytId;
-  if (item.type === "playlist-channel") return item.ytPlaylistId;
-  return item.channelId;
+  return getLibraryItemId(item);
 }
 
 type LibraryContextValue = {
@@ -73,6 +73,7 @@ type LibraryContextValue = {
   addVideo: (video: Omit<VideoItem, "type" | "addedAt">) => void;
   addPlaylistChannel: (playlist: Omit<PlaylistChannel, "type" | "addedAt">) => void;
   addChannel: (channel: Omit<ChannelItem, "type" | "addedAt">) => void;
+  addPodcast: (podcast: Omit<PodcastItem, "type" | "addedAt">) => void;
   archiveItem: (id: string) => void;
   restoreItem: (id: string) => void;
   permanentlyDeleteItem: (id: string) => void;
@@ -81,8 +82,8 @@ type LibraryContextValue = {
   updateSettings: (patch: Partial<LibrarySettings>) => void;
   updateVideoPosition: (id: string, position: number, duration: number) => void;
   updateWatchProgress: (input: WatchProgressInput) => void;
-  removeWatchHistoryEntry: (ytId: string) => void;
-  getWatchHistoryEntry: (ytId: string) => WatchHistoryItem | undefined;
+  removeWatchHistoryEntry: (id: string, mediaType?: "youtube" | "podcast") => void;
+  getWatchHistoryEntry: (id: string, mediaType?: "youtube" | "podcast") => WatchHistoryItem | undefined;
   filteredItems: (tag: string | null) => LibraryItem[];
   allTags: () => string[];
   exportLibrary: () => void;
@@ -166,6 +167,20 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           prev.archivedItems.some((i) => i.type === "channel" && (i as ChannelItem).channelId === channel.channelId);
         if (exists) return prev;
         const newItem: ChannelItem = { type: "channel", ...channel, addedAt: Date.now() };
+        return { ...prev, items: [newItem, ...prev.items] };
+      });
+    },
+    [update]
+  );
+
+  const addPodcast = useCallback(
+    (podcast: Omit<PodcastItem, "type" | "addedAt">) => {
+      update((prev) => {
+        const exists =
+          prev.items.some((i) => i.type === "podcast" && (i as PodcastItem).feedUrl === podcast.feedUrl) ||
+          prev.archivedItems.some((i) => i.type === "podcast" && (i as PodcastItem).feedUrl === podcast.feedUrl);
+        if (exists) return prev;
+        const newItem: PodcastItem = { type: "podcast", ...podcast, addedAt: Date.now() };
         return { ...prev, items: [newItem, ...prev.items] };
       });
     },
@@ -310,17 +325,18 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   );
 
   const removeWatchHistoryEntry = useCallback(
-    (ytId: string) => {
+    (id: string, mediaType: "youtube" | "podcast" = "youtube") => {
       update((prev) => ({
         ...prev,
-        watchHistory: prev.watchHistory.filter((entry) => entry.ytId !== ytId),
+        watchHistory: prev.watchHistory.filter((entry) => historyKey(entry) !== `${mediaType}:${id}`),
       }));
     },
     [update]
   );
 
   const getWatchHistoryEntry = useCallback(
-    (ytId: string) => library.watchHistory.find((entry) => entry.ytId === ytId),
+    (id: string, mediaType: "youtube" | "podcast" = "youtube") =>
+      library.watchHistory.find((entry) => historyKey(entry) === `${mediaType}:${id}`),
     [library.watchHistory]
   );
 
@@ -395,6 +411,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         addVideo,
         addPlaylistChannel,
         addChannel,
+        addPodcast,
         archiveItem,
         restoreItem,
         permanentlyDeleteItem,

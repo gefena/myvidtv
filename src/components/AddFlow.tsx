@@ -4,10 +4,12 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
-import { fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
+import { extractVideoId, fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
 import { isChannelUrl, resolveChannelId, fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
+import { fetchPodcastFeedMeta, isPodcastFeedUrl } from "@/lib/podcastRss";
 import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { VideoMeta } from "@/types/library";
+import type { PodcastFeedMeta } from "@/lib/podcastRss";
 
 type Step =
   | { name: "input" }
@@ -15,6 +17,7 @@ type Step =
   | { name: "video"; meta: VideoMeta }
   | { name: "playlist-name"; playlistId: string }
   | { name: "channel-name"; channelId: string; channelName: string; channelThumbnail: string }
+  | { name: "podcast"; meta: PodcastFeedMeta }
   | { name: "error"; message: string; requestId?: string };
 
 type AddFlowProps = {
@@ -23,7 +26,7 @@ type AddFlowProps = {
 };
 
 export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
-  const { items, archivedItems, customTags, addVideo, addPlaylistChannel, addChannel, addCustomTag } = useLibrary();
+  const { items, archivedItems, customTags, addVideo, addPlaylistChannel, addChannel, addPodcast, addCustomTag } = useLibrary();
   const [url, setUrl] = useState(initialUrl);
   const [step, setStep] = useState<Step>({ name: "input" });
   const [tags, setTags] = useState<string[]>([]);
@@ -61,6 +64,17 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
         return;
       }
       setStep({ name: "playlist-name", playlistId: id });
+      return;
+    }
+
+    if (isPodcastFeedUrl(trimmed) || !extractVideoId(trimmed)) {
+      setStep({ name: "loading" });
+      try {
+        const meta = await fetchPodcastFeedMeta(trimmed);
+        setStep({ name: "podcast", meta });
+      } catch (err) {
+        setStep({ name: "error", message: err instanceof Error ? err.message : "Could not fetch podcast feed." });
+      }
       return;
     }
 
@@ -149,6 +163,30 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
     onClose();
   };
 
+  const handlePodcastSave = (meta: PodcastFeedMeta) => {
+    const allItems = [...items, ...archivedItems];
+    const exists = allItems.some((i) => i.type === "podcast" && i.feedUrl === meta.feedUrl);
+    if (exists) {
+      const inArchive = archivedItems.some((i) => i.type === "podcast" && i.feedUrl === meta.feedUrl);
+      setStep({
+        name: "error",
+        message: inArchive
+          ? "This podcast is in your archive. Restore it from the archive to add it back."
+          : "This podcast is already in your library.",
+      });
+      return;
+    }
+    addPodcast({
+      feedUrl: meta.feedUrl,
+      title: meta.title,
+      author: meta.author,
+      thumbnail: meta.thumbnail,
+      episodeCount: meta.episodeCount,
+      tags,
+    });
+    onClose();
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -228,7 +266,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="Paste a YouTube link..."
+                placeholder="Paste a YouTube or podcast link..."
                 autoFocus
                 style={{
                   flex: 1,
@@ -334,6 +372,51 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                 }}
               >
                 Save to MyVidTV
+              </button>
+            </>
+          )}
+
+          {/* Podcast preview */}
+          {step.name === "podcast" && (
+            <>
+              <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                {step.meta.thumbnail && (
+                  <div style={{ position: "relative", width: 68, height: 68, flexShrink: 0, borderRadius: "4px", overflow: "hidden", background: "var(--border)" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={step.meta.thumbnail} alt={step.meta.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: "14px", color: "var(--text)", marginBottom: "4px" }}>
+                    {step.meta.title}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    {[step.meta.author || "Podcast", `${step.meta.episodeCount} episodes`].join(" · ")}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Tags
+                </div>
+                <TagPicker selected={tags} customTags={customTags} onChange={handleTagsChange} />
+              </div>
+
+              <button
+                onClick={() => handlePodcastSave(step.meta)}
+                style={{
+                  background: "var(--violet)",
+                  border: "none",
+                  borderRadius: "6px",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 500,
+                  padding: "10px",
+                  width: "100%",
+                }}
+              >
+                Add Podcast
               </button>
             </>
           )}

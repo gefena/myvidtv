@@ -1,14 +1,14 @@
 # MyVidTV — Your Personal TV
 
-A dark, cinematic personal TV experience for your curated YouTube content. No account required — your library lives on your device.
+A dark, cinematic personal media experience for your curated YouTube and podcast content. No account required — your library lives on your device.
 
 **Live:** [https://myvidtv.vercel.app](https://myvidtv.vercel.app)
 
 ## Features
 
-- Add YouTube videos and playlist channels to your personal library
+- Add YouTube videos, YouTube channels, playlists, and podcast feeds to your personal library
 - Tag-based filtering to organize your content
-- Watch mode (full player) and Listen mode (audio-only mini bar)
+- Watch mode (full player) and Listen mode (audio-focused mini bar)
 - Auto-advance to the next item in a tag or playlist
 - Archive items you've finished with
 - Collapsible library panel for distraction-free watching
@@ -20,8 +20,9 @@ A dark, cinematic personal TV experience for your curated YouTube content. No ac
 
 - [Next.js 16](https://nextjs.org) App Router
 - [Framer Motion](https://www.framer.com/motion/) for animations
-- YouTube IFrame Player API for playback
+- YouTube IFrame Player API and HTML audio playback
 - YouTube oEmbed for metadata (no API key needed)
+- RSS/Atom parsing for podcast feeds
 - `localStorage` for persistence
 
 ## Local Development
