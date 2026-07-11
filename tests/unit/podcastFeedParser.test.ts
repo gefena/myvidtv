@@ -58,11 +58,44 @@ describe("podcast feed parser", () => {
     expect(feed.episodes).toEqual([]);
   });
 
+  it("orders playable episodes newest first even when the feed is oldest first", () => {
+    const xml = `
+      <rss version="2.0">
+        <channel>
+          <title>Oldest First Podcast</title>
+          <item>
+            <guid>oldest</guid>
+            <title>Oldest</title>
+            <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
+            <enclosure url="https://cdn.example.com/oldest.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>middle</guid>
+            <title>Middle</title>
+            <pubDate>Mon, 01 Jan 2025 10:00:00 GMT</pubDate>
+            <enclosure url="https://cdn.example.com/middle.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>newest</guid>
+            <title>Newest</title>
+            <pubDate>Mon, 01 Jan 2026 10:00:00 GMT</pubDate>
+            <enclosure url="https://cdn.example.com/newest.mp3" type="audio/mpeg" />
+          </item>
+        </channel>
+      </rss>
+    `;
+
+    const feed = parsePodcastFeedXml(xml, "https://example.com/feed.xml");
+
+    expect(feed.episodes.map((episode) => episode.episodeId)).toEqual(["newest", "middle", "oldest"]);
+  });
+
   it("counts large feeds without returning more than the playable cap", () => {
     const items = Array.from({ length: 2_000 }, (_, index) => `
       <item>
         <guid>daily-${index}</guid>
         <title>Daily Episode ${index}</title>
+        <pubDate>${new Date(Date.UTC(2024, 0, 1 + index)).toUTCString()}</pubDate>
         <enclosure url="https://cdn.example.com/daily-${index}.mp3" type="audio/mpeg" />
       </item>
     `).join("");
@@ -72,7 +105,7 @@ describe("podcast feed parser", () => {
 
     expect(feed.episodeCount).toBe(2_000);
     expect(feed.episodes).toHaveLength(100);
-    expect(feed.episodes.at(0)?.episodeId).toBe("daily-0");
-    expect(feed.episodes.at(-1)?.episodeId).toBe("daily-99");
+    expect(feed.episodes.at(0)?.episodeId).toBe("daily-1999");
+    expect(feed.episodes.at(-1)?.episodeId).toBe("daily-1900");
   });
 });

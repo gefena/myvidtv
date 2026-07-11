@@ -6,10 +6,10 @@ import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { extractVideoId, fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
 import { isChannelUrl, resolveChannelId, fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
-import { fetchPodcastFeedMeta, isPodcastFeedUrl } from "@/lib/podcastRss";
+import { fetchPodcastFeedMeta, isPodcastFeedUrl, resolvePodcastLink } from "@/lib/podcastRss";
 import { PREDEFINED_TAGS } from "@/lib/constants";
 import type { VideoMeta } from "@/types/library";
-import type { PodcastFeedMeta } from "@/lib/podcastRss";
+import type { PodcastFeedMeta, PodcastResolveChoice } from "@/lib/podcastRss";
 
 type Step =
   | { name: "input" }
@@ -18,6 +18,7 @@ type Step =
   | { name: "playlist-name"; playlistId: string }
   | { name: "channel-name"; channelId: string; channelName: string; channelThumbnail: string }
   | { name: "podcast"; meta: PodcastFeedMeta }
+  | { name: "podcast-choices"; choices: PodcastResolveChoice[] }
   | { name: "error"; message: string; requestId?: string };
 
 type AddFlowProps = {
@@ -70,7 +71,16 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
     if (isPodcastFeedUrl(trimmed) || !extractVideoId(trimmed)) {
       setStep({ name: "loading" });
       try {
-        const meta = await fetchPodcastFeedMeta(trimmed);
+        const resolved = await resolvePodcastLink(trimmed);
+        if (resolved.status === "choices") {
+          setStep({ name: "podcast-choices", choices: resolved.choices });
+          return;
+        }
+        if (resolved.status === "externalOnly" || resolved.status === "notFound") {
+          setStep({ name: "error", message: resolved.message });
+          return;
+        }
+        const meta = await fetchPodcastFeedMeta(resolved.feedUrl);
         setStep({ name: "podcast", meta });
       } catch (err) {
         setStep({ name: "error", message: err instanceof Error ? err.message : "Could not fetch podcast feed." });
@@ -185,6 +195,16 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       tags,
     });
     onClose();
+  };
+
+  const handlePodcastChoice = async (choice: PodcastResolveChoice) => {
+    setStep({ name: "loading" });
+    try {
+      const meta = await fetchPodcastFeedMeta(choice.feedUrl);
+      setStep({ name: "podcast", meta });
+    } catch (err) {
+      setStep({ name: "error", message: err instanceof Error ? err.message : "Could not fetch podcast feed." });
+    }
   };
 
   useEffect(() => {
@@ -374,6 +394,68 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                 Save to MyVidTV
               </button>
             </>
+          )}
+
+          {/* Podcast choices */}
+          {step.name === "podcast-choices" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: "14px", color: "var(--text)", marginBottom: "4px" }}>
+                  Choose the podcast feed
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  This link matches more than one public feed.
+                </div>
+              </div>
+              {step.choices.map((choice) => (
+                <button
+                  key={choice.feedUrl}
+                  onClick={() => void handlePodcastChoice(choice)}
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    alignItems: "center",
+                    width: "100%",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    color: "var(--text)",
+                    cursor: "pointer",
+                    padding: "8px",
+                    textAlign: "left",
+                  }}
+                >
+                  <div style={{ width: 44, height: 44, borderRadius: "4px", overflow: "hidden", flexShrink: 0, background: "var(--border)" }}>
+                    {choice.thumbnail && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={choice.thumbnail} alt={choice.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    )}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {choice.title}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {choice.author || choice.feedUrl}
+                    </div>
+                  </div>
+                </button>
+              ))}
+              <button
+                onClick={() => setStep({ name: "input" })}
+                style={{
+                  alignSelf: "center",
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  padding: "6px",
+                }}
+              >
+                Try another link
+              </button>
+            </div>
           )}
 
           {/* Podcast preview */}

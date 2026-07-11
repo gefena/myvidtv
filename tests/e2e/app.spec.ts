@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { channelItem, mockPodcastFeed, podcastFeed, podcastItem, readLibrary, seedLibrary, watchHistoryEntry } from "./fixtures";
+import { channelItem, mockPodcastFeed, mockPodcastResolve, podcastFeed, podcastItem, readLibrary, seedLibrary, watchHistoryEntry } from "./fixtures";
 
 test("desktop shell renders without unhandled page errors", async ({ page, isMobile }) => {
   test.skip(isMobile, "desktop-only smoke test");
@@ -61,6 +61,7 @@ test("history view supports podcast entries with external artwork", async ({ pag
 
 test("add flow saves a podcast feed into the shared library", async ({ page, isMobile }) => {
   test.skip(isMobile, "desktop-only add flow smoke test");
+  await mockPodcastResolve(page, { status: "resolved", feedUrl: "https://example.test/feed.xml", source: "direct" });
   await mockPodcastFeed(page, podcastFeed());
 
   await page.goto("/");
@@ -76,6 +77,38 @@ test("add flow saves a podcast feed into the shared library", async ({ page, isM
   await expect(page.getByText("Seeded Podcast")).toBeVisible();
   const library = await readLibrary(page);
   expect(library.items.some((item) => item.type === "podcast" && item.title === "Seeded Podcast")).toBe(true);
+});
+
+test("add flow lets users choose between resolved podcast feeds", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop-only add flow smoke test");
+  await mockPodcastResolve(page, {
+    status: "choices",
+    source: "html",
+    choices: [
+      {
+        title: "Wrong Feed",
+        author: "Other Host",
+        feedUrl: "https://example.test/wrong.xml",
+        thumbnail: "https://podcast-cdn.example.test/wrong.jpg",
+      },
+      {
+        title: "Seeded Podcast",
+        author: "Seeded Host",
+        feedUrl: "https://example.test/feed.xml",
+        thumbnail: "https://podcast-cdn.example.test/artwork.jpg",
+      },
+    ],
+  });
+  await mockPodcastFeed(page, podcastFeed());
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "+ Add" }).click();
+  await page.locator('input[placeholder="Paste a YouTube or podcast link..."]').last().fill("https://example.test/podcast");
+  await page.getByRole("button", { name: "Fetch" }).click();
+
+  await expect(page.getByText("Choose the podcast feed")).toBeVisible();
+  await page.getByText("Seeded Podcast", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "Add Podcast" })).toBeVisible();
 });
 
 test("podcast library item opens episodes, plays one, and writes history", async ({ page, isMobile }) => {
