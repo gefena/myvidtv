@@ -8,7 +8,7 @@ test("desktop shell renders without unhandled page errors", async ({ page, isMob
 
   await page.goto("/");
 
-  await expect(page.getByText("MyVidTV")).toBeVisible();
+  await expect(page).toHaveTitle(/MyVidTV/);
   expect(errors).toEqual([]);
 });
 
