@@ -19,6 +19,19 @@ export type PodcastFeed = PodcastFeedMeta & {
   episodes: PodcastEpisode[];
 };
 
+export type PodcastResolveChoice = {
+  title: string;
+  author: string;
+  feedUrl: string;
+  thumbnail: string;
+};
+
+export type PodcastResolveResult =
+  | { status: "resolved"; feedUrl: string; source: "direct" | "html" | "apple" }
+  | { status: "choices"; choices: PodcastResolveChoice[]; source: "html" | "spotify" | "search" }
+  | { status: "externalOnly"; provider?: string; externalUrl: string; message: string }
+  | { status: "notFound"; message: string };
+
 export function isPodcastFeedUrl(url: string): boolean {
   try {
     const u = new URL(url.trim());
@@ -45,6 +58,16 @@ export async function fetchPodcastFeedMeta(feedUrl: string): Promise<PodcastFeed
     thumbnail: feed.thumbnail,
     episodeCount: feed.episodeCount,
   };
+}
+
+export async function resolvePodcastLink(url: string): Promise<PodcastResolveResult> {
+  const res = await fetch(`/api/resolve-podcast?url=${encodeURIComponent(url)}`);
+  if (!res.ok) {
+    const message = await readErrorMessage(res);
+    throw new Error(message ?? "Could not resolve podcast link.");
+  }
+
+  return await res.json() as PodcastResolveResult;
 }
 
 export async function fetchPodcastFeed(feedUrl: string): Promise<PodcastFeed> {

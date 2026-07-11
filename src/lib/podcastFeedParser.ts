@@ -2,6 +2,12 @@ import type { PodcastEpisode, PodcastFeed } from "@/lib/podcastRss";
 
 const EPISODE_LIMIT = 100;
 
+type IndexedEpisode = {
+  episode: PodcastEpisode;
+  index: number;
+  timestamp: number | null;
+};
+
 export function parsePodcastFeedXml(xml: string, feedUrl: string): PodcastFeed {
   const channelXml = firstMatch(xml, /<channel\b[\s\S]*?<\/channel>/i) ?? xml;
   const title =
@@ -38,21 +44,32 @@ function collectEpisodes(xml: string, feedThumbnail: string, feedUrl: string): {
   episodeCount: number;
   episodes: PodcastEpisode[];
 } {
-  const episodes: PodcastEpisode[] = [];
+  const episodes: IndexedEpisode[] = [];
   const pattern = /<(item|entry)\b[\s\S]*?<\/\1>/gi;
   let episodeCount = 0;
   let match: RegExpExecArray | null;
 
   while ((match = pattern.exec(xml)) !== null) {
+    const index = episodeCount;
     episodeCount += 1;
 
-    if (episodes.length < EPISODE_LIMIT) {
-      const episode = parseEpisode(match[0], feedThumbnail, feedUrl);
-      if (episode) episodes.push(episode);
+    const episode = parseEpisode(match[0], feedThumbnail, feedUrl);
+    if (episode) {
+      episodes.push({
+        episode,
+        index,
+        timestamp: parseDateTimestamp(episode.publishedAt),
+      });
     }
   }
 
-  return { episodeCount, episodes };
+  return {
+    episodeCount,
+    episodes: episodes
+      .sort(compareNewestFirst)
+      .slice(0, EPISODE_LIMIT)
+      .map((entry) => entry.episode),
+  };
 }
 
 function parseEpisode(entry: string, feedThumbnail: string, feedUrl: string): PodcastEpisode | null {
@@ -141,6 +158,21 @@ function decodeXml(value: string | null | undefined): string | undefined {
 
 function looksLikeAudioUrl(url: string): boolean {
   return /\.(mp3|m4a|aac|ogg|oga|opus|wav)(?:[?#].*)?$/i.test(url);
+}
+
+function parseDateTimestamp(value: string): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
+function compareNewestFirst(a: IndexedEpisode, b: IndexedEpisode): number {
+  if (a.timestamp !== null && b.timestamp !== null && a.timestamp !== b.timestamp) {
+    return b.timestamp - a.timestamp;
+  }
+  if (a.timestamp !== null && b.timestamp === null) return -1;
+  if (a.timestamp === null && b.timestamp !== null) return 1;
+  return a.index - b.index;
 }
 
 function resolveHttpUrl(value: string, baseUrl: string): string | null {

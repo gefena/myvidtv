@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import type { ChannelItem, LibraryData, PodcastItem, WatchHistoryItem } from "@/types/library";
-import type { PodcastFeed } from "@/lib/podcastRss";
+import type { PodcastFeed, PodcastResolveResult } from "@/lib/podcastRss";
 
 const STORAGE_KEY = "myvidtv_library";
 
@@ -72,6 +72,16 @@ export async function mockPodcastFeed(page: Page, feed: PodcastFeed, status = 20
       status,
       contentType: "application/json",
       body: JSON.stringify(status >= 400 ? { error: "Podcast feed failed" } : feed),
+    });
+  });
+}
+
+export async function mockPodcastResolve(page: Page, result: PodcastResolveResult, status = 200): Promise<void> {
+  await page.route("**/api/resolve-podcast?**", async (route) => {
+    await route.fulfill({
+      status,
+      contentType: "application/json",
+      body: JSON.stringify(status >= 400 ? { error: "Podcast resolve failed" } : result),
     });
   });
 }
