@@ -5,13 +5,11 @@ import { useSyncExternalStore } from "react";
 export type Layout = "phone" | "tablet" | "desktop";
 
 const PHONE_QUERY = "(max-width: 600px)";
-const NARROW_TABLET_QUERY = "(max-width: 720px)";
 const COARSE_TABLET_QUERY = "(max-width: 1200px) and (pointer: coarse)";
 const COARSE_POINTER_QUERY = "(pointer: coarse)";
 
 export function resolveLayout(width: number, isCoarsePointer: boolean): Layout {
   if (width <= 600) return "phone";
-  if (width <= 720) return "tablet";
   if (width <= 1200 && isCoarsePointer) return "tablet";
   return "desktop";
 }
@@ -33,7 +31,6 @@ function subscribeLayout(callback: () => void): () => void {
 
   const mqls = [
     window.matchMedia(PHONE_QUERY),
-    window.matchMedia(NARROW_TABLET_QUERY),
     window.matchMedia(COARSE_TABLET_QUERY),
     window.matchMedia(COARSE_POINTER_QUERY),
   ];

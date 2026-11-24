@@ -82,12 +82,13 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
   const isListen = mode === "listen";
   const displayItem = playerCurrentItem ?? currentItem;
+  const hasDisplayItem = Boolean(displayItem);
   const isPodcastEpisode = displayItem?.type === "podcast-episode";
 
   // Measure the fixed phone listen bar height so the library sheet and peek bar stay clear
   useEffect(() => {
     const root = document.documentElement;
-    if (!isListen || !displayItem || layout !== "phone") {
+    if (!isListen || !hasDisplayItem || layout !== "phone") {
       root.style.setProperty("--phone-listen-bar-height", "0px");
       return;
     }
@@ -114,7 +115,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
       observer.disconnect();
       root.style.setProperty("--phone-listen-bar-height", "0px");
     };
-  }, [isListen, displayItem, layout]);
+  }, [isListen, hasDisplayItem, layout]);
 
   const mobileTitleWrapStyle = {
     fontSize: "13px",
@@ -156,6 +157,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     >
       {/* YouTube IFrame container — phone/tablet: capped 16:9 or flex in landscape; desktop: flex height */}
       <div
+        data-testid="player-video-stage"
         inert={backgroundInert}
         className={
           isListen || layout === "desktop"
@@ -189,16 +191,20 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               }
         }
       >
-        <div
-          ref={containerRef}
-          id="yt-player"
-          style={{
-            width: "100%",
-            height: "100%",
-            opacity: isListen || isPodcastEpisode ? 0 : 1,
-            transition: "opacity 0.3s",
-          }}
-        />
+        <div className="player-stage-inner">
+          <div className="player-yt-frame">
+            <div
+              ref={containerRef}
+              id="yt-player"
+              style={{
+                width: "100%",
+                height: "100%",
+                opacity: isListen || isPodcastEpisode ? 0 : 1,
+                transition: "opacity 0.3s",
+              }}
+            />
+          </div>
+        </div>
         <audio ref={audioRef} preload="metadata" />
 
         {isPodcastEpisode && !isListen && (
@@ -318,27 +324,27 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
             </div>
           </div>
 
-          {/* Phone: two-row layout — metadata row then actions row */}
+          {/* Phone: two-row layout (compacts to single row in short landscape) */}
           {layout === "phone" ? (
             <div className="phone-now-playing">
-              <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
+              <div className="phone-now-playing-meta">
                 <NowPlayingThumbnail item={displayItem} width={44} height={displayItem.type === "podcast-episode" ? 44 : 25} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="phone-title-wrap" style={mobileTitleWrapStyle}>
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
-                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{displayItem.podcastTitle}</div>
+                    <div className="phone-now-playing-sub" data-testid="now-playing-subtitle">{displayItem.podcastTitle}</div>
                   ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
-                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                    <button onClick={onOpenChannel} className="phone-now-playing-sub" data-testid="now-playing-subtitle" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", maxWidth: "100%", display: "block" }}>
                       {displayItem.channelName} ↗
                     </button>
                   ) : (
-                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                    <div className="phone-now-playing-sub" data-testid="now-playing-subtitle">{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", flexWrap: "nowrap" }}>
+              <div className="phone-now-playing-controls">
                 {canSeekFixedStep && (
                   <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget isTouch={isTouch} compact>−10</ControlBtn>
                 )}
@@ -483,13 +489,13 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
-                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{displayItem.podcastTitle}</div>
+                    <div data-testid="listen-bar-subtitle" style={{ fontSize: "11px", color: "var(--text-dim)" }}>{displayItem.podcastTitle}</div>
                   ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
-                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                    <button data-testid="listen-bar-subtitle" onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                       {displayItem.channelName} ↗
                     </button>
                   ) : (
-                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                    <div data-testid="listen-bar-subtitle" style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
               </div>

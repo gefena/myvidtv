@@ -376,6 +376,7 @@ export function LibraryPanel({
                     isActive={isActive}
                     isArchive={isArchive}
                     isMobile={isTouch}
+                    layout={layout}
                     onSelect={() => {
                       if (isArchive) return;
                       if (item.type === "channel") {
@@ -532,6 +533,7 @@ function LibraryCard({
   isActive,
   isArchive,
   isMobile,
+  layout = "desktop",
   onSelect,
   onArchive,
   onRestore,
@@ -541,6 +543,7 @@ function LibraryCard({
   isActive: boolean;
   isArchive: boolean;
   isMobile: boolean;
+  layout?: Layout;
   onSelect: () => void;
   onArchive: () => void;
   onRestore: () => void;
@@ -877,7 +880,15 @@ function LibraryCard({
           }}>
             {title}
           </div>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>
+          <div
+            style={
+              layout !== "desktop"
+                ? { fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+                : { fontSize: "11px", color: "var(--text-muted)" }
+            }
+          >
+            {sub}
+          </div>
           {!isArchive && !editing && item.tags.length > 0 && (
             <div style={{ display: "flex", gap: "3px", flexWrap: "wrap", marginTop: "4px" }}>
               {item.tags.slice(0, 3).map((tag) => (

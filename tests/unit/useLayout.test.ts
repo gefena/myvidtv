@@ -9,17 +9,10 @@ describe("resolveLayout", () => {
     }
   });
 
-  it("returns tablet at 601px-720px for both touch and non-touch (narrow sidebar cutoff)", () => {
-    for (const width of [601, 650, 667, 720]) {
+  it("returns tablet at 601px-1200px only for coarse pointers and desktop for fine pointers", () => {
+    for (const width of [601, 650, 667, 720, 721, 768, 800, 844, 900, 1023, 1024, 1200]) {
       expect(resolveLayout(width, true)).toBe("tablet");
-      expect(resolveLayout(width, false)).toBe("tablet");
-    }
-  });
-
-  it("preserves desktop at 721px+ for fine pointers and tablet up to 1200px for coarse pointers", () => {
-    for (const width of [721, 768, 800, 844, 900, 1023, 1024, 1200]) {
       expect(resolveLayout(width, false)).toBe("desktop");
-      expect(resolveLayout(width, true)).toBe("tablet");
     }
 
     expect(resolveLayout(1201, false)).toBe("desktop");
@@ -51,6 +44,8 @@ describe("getClientLayout and getClientIsTouch", () => {
       [390, false],
       [600, false],
       [601, false],
+      [650, false],
+      [650, true],
       [720, false],
       [721, false],
       [800, false],

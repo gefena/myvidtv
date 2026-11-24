@@ -40,6 +40,7 @@ export function AppShell() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const sheetCloseBtnRef = useRef<HTMLButtonElement>(null);
   const sheetTriggerRef = useRef<HTMLElement | null>(null);
+  const sheetUserInitiatedRef = useRef(false);
   const peekBarTriggerRef = useRef<HTMLButtonElement>(null);
   const wasSheetOpenRef = useRef(false);
   const modalTriggerRef = useRef<HTMLElement | null>(null);
@@ -59,6 +60,7 @@ export function AppShell() {
     } else if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
       sheetTriggerRef.current = document.activeElement;
     }
+    sheetUserInitiatedRef.current = true;
     setLibrarySheetOpen(true);
   }, []);
 
@@ -186,11 +188,12 @@ export function AppShell() {
     }
   }, []);
 
-  // Open library sheet automatically on phone when entering listen mode or when
-  // the playing item changes while in listen mode (e.g. browse-modal pick or auto-advance),
+  // Open library sheet automatically on phone when rotating/resizing into phone with no
+  // currentItem, when entering listen mode, or when the playing item changes in listen mode;
   // close it when exiting listen mode to watch a playing item, and clear stale open state
   // when leaving phone layout.
   // (adjusted during render to avoid cascading renders via react-hooks/set-state-in-effect)
+  const isEmpty = items.length === 0 && watchHistory.length === 0 && !showArchive;
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   const [prevListenMode, setPrevListenMode] = useState(settings.listenMode);
   const [prevCurrentItem, setPrevCurrentItem] = useState(currentItem);
@@ -203,7 +206,7 @@ export function AppShell() {
     setPrevIsMobile(isMobile);
     setPrevListenMode(settings.listenMode);
     setPrevCurrentItem(currentItem);
-    if (isMobile && settings.listenMode) {
+    if (hydrated && isMobile && !isEmpty && (!currentItem || settings.listenMode)) {
       setLibrarySheetOpen(true);
     } else if (isMobile && prevListenMode && !settings.listenMode && currentItem) {
       setLibrarySheetOpen(false);
@@ -224,24 +227,33 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobile, librarySheetOpen, modalOpen]);
 
-  // Manage focus into the phone library sheet on open and restore to trigger on close
+  // Move focus into the phone library sheet only on user-initiated opens; restore to trigger on close
   useEffect(() => {
     const isOpen = isMobile && librarySheetOpen;
     if (isOpen && !wasSheetOpenRef.current) {
       wasSheetOpenRef.current = true;
-      if (sheetCloseBtnRef.current) {
-        sheetCloseBtnRef.current.focus();
-      } else {
-        sheetRef.current?.focus();
+      const wasUserInitiated = sheetUserInitiatedRef.current;
+      sheetUserInitiatedRef.current = false;
+      if (wasUserInitiated) {
+        if (sheetCloseBtnRef.current) {
+          sheetCloseBtnRef.current.focus();
+        } else {
+          sheetRef.current?.focus();
+        }
       }
     } else if (!isOpen && wasSheetOpenRef.current) {
       wasSheetOpenRef.current = false;
+      sheetUserInitiatedRef.current = false;
       if (!modalOpen) {
         const trigger = sheetTriggerRef.current;
         if (trigger && trigger.isConnected) {
           trigger.focus();
-        } else if (peekBarTriggerRef.current && peekBarTriggerRef.current.isConnected) {
-          peekBarTriggerRef.current.focus();
+        } else {
+          const active = typeof document !== "undefined" ? document.activeElement : null;
+          const focusWasInsideSheet = !active || active === document.body || sheetRef.current?.contains(active);
+          if (focusWasInsideSheet && peekBarTriggerRef.current && peekBarTriggerRef.current.isConnected) {
+            peekBarTriggerRef.current.focus();
+          }
         }
       }
       sheetTriggerRef.current = null;
@@ -273,9 +285,9 @@ export function AppShell() {
 
   if (!hydrated) return null;
 
-  const isEmpty = items.length === 0 && watchHistory.length === 0 && !showArchive;
   const collapsed = settings.libraryCollapsed;
   const phoneSheetOpen = isMobile && librarySheetOpen;
+  const phoneSheetModal = phoneSheetOpen && !(settings.listenMode && Boolean(currentItem));
 
   const handleCollapseToggle = () => {
     updateSettings({ libraryCollapsed: !collapsed });
@@ -299,7 +311,7 @@ export function AppShell() {
         background: "var(--bg-grad)",
       }}
     >
-      <Header onAdd={() => { captureModalTrigger(); setAddOpen(true); }} inert={phoneSheetOpen || modalOpen} />
+      <Header onAdd={() => { captureModalTrigger(); setAddOpen(true); }} inert={phoneSheetModal || modalOpen} />
 
       {isEmpty ? (
         <main inert={modalOpen} style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden" }}>
@@ -322,6 +334,7 @@ export function AppShell() {
             flex: 1,
             display: "flex",
             overflow: "hidden",
+            position: "relative",
             ...(layout !== "tablet" && { flexDirection: layout === "phone" ? "column" : "row" }),
           }}
           className={layout === "tablet" ? "tablet-layout" : undefined}
@@ -355,7 +368,7 @@ export function AppShell() {
                 setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 });
               }}
               layout={layout}
-              backgroundInert={phoneSheetOpen}
+              backgroundInert={phoneSheetModal}
             />
           </div>
 
@@ -382,6 +395,7 @@ export function AppShell() {
                 {channelContext ? (
                   <>
                     <button
+                      className="phone-peek-bar-btn-split"
                       onClick={() => {
                         captureModalTrigger();
                         setBrowseChannelItem({ type: "channel", channelId: channelContext.channelId, title: channelContext.title, thumbnail: "", tags: [], addedAt: 0 });
@@ -397,9 +411,7 @@ export function AppShell() {
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "6px",
-                        padding: "14px 12px",
                         fontSize: "14px",
-                        minHeight: "44px",
                         minWidth: 0,
                       }}
                     >
@@ -410,6 +422,8 @@ export function AppShell() {
                     </button>
                     <button
                       ref={peekBarTriggerRef}
+                      data-testid="phone-open-library"
+                      className="phone-peek-bar-btn-split"
                       onClick={openLibrarySheet}
                       style={{
                         flex: 1,
@@ -421,9 +435,7 @@ export function AppShell() {
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "8px",
-                        padding: "14px 12px",
                         fontSize: "14px",
-                        minHeight: "44px",
                       }}
                     >
                       <span aria-hidden="true">☰</span>
@@ -435,6 +447,7 @@ export function AppShell() {
                   <>
                     <button
                       ref={peekBarTriggerRef}
+                      className="phone-peek-bar-btn"
                       onClick={openLibrarySheet}
                       style={{
                         flex: 1,
@@ -445,8 +458,6 @@ export function AppShell() {
                         display: "flex",
                         alignItems: "center",
                         gap: "10px",
-                        padding: "10px 14px",
-                        minHeight: "44px",
                         minWidth: 0,
                         textAlign: "left",
                       }}
@@ -471,12 +482,14 @@ export function AppShell() {
                         <div style={{ fontSize: "13px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3 }}>
                           {currentItem.title}
                         </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div className="phone-peek-bar-sub" style={{ fontSize: "11px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {currentItem.type === "podcast-episode" ? currentItem.podcastTitle : currentItem.channelName}
                         </div>
                       </div>
                     </button>
                     <button
+                      data-testid="phone-open-library"
+                      className="phone-peek-bar-btn-icon"
                       onClick={openLibrarySheet}
                       aria-label="Open library"
                       style={{
@@ -489,10 +502,7 @@ export function AppShell() {
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "6px",
-                        padding: "10px 16px",
                         fontSize: "14px",
-                        minWidth: "44px",
-                        minHeight: "44px",
                         flexShrink: 0,
                       }}
                     >
@@ -502,6 +512,8 @@ export function AppShell() {
                 ) : (
                   <button
                     ref={peekBarTriggerRef}
+                    data-testid="phone-open-library"
+                    className="phone-peek-bar-btn-wide"
                     onClick={openLibrarySheet}
                     style={{
                       flex: 1,
@@ -513,9 +525,7 @@ export function AppShell() {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: "8px",
-                      padding: "14px 20px",
                       fontSize: "14px",
-                      minHeight: "44px",
                     }}
                   >
                     <span aria-hidden="true">☰</span>
@@ -532,7 +542,7 @@ export function AppShell() {
                     tabIndex={-1}
                     key="library-sheet"
                     role="dialog"
-                    aria-modal={!(settings.listenMode && Boolean(currentItem))}
+                    aria-modal={phoneSheetModal}
                     aria-label="Library"
                     inert={modalOpen}
                     initial={{ y: "100%" }}
@@ -540,13 +550,13 @@ export function AppShell() {
                     exit={{ y: "100%" }}
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
                     style={{
-                      position: "fixed",
+                      position: phoneSheetModal ? "fixed" : "absolute",
                       inset: 0,
                       zIndex: 100,
                       background: "var(--surface)",
                       display: "flex",
                       flexDirection: "column",
-                      paddingTop: "env(safe-area-inset-top, 0px)",
+                      paddingTop: phoneSheetModal ? "env(safe-area-inset-top, 0px)" : 0,
                     }}
                   >
                     {/* Sheet handle + header */}
@@ -562,7 +572,7 @@ export function AppShell() {
                         gap: "6px 8px",
                         padding: "8px 12px 10px",
                       }}>
-                        <span style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-dim)", whiteSpace: "nowrap" }}>
+                        <span data-testid="sheet-header-title" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-dim)", whiteSpace: "nowrap" }}>
                           {libraryView === "archive" ? "Archive" : libraryView === "history" ? "History" : "Library"}
                         </span>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap", marginLeft: "auto" }}>
