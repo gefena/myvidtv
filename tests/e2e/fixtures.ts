@@ -1,8 +1,70 @@
 import type { Page } from "@playwright/test";
-import type { ChannelItem, LibraryData, PodcastItem, WatchHistoryItem } from "@/types/library";
+import type { ChannelItem, LibraryData, PodcastItem, VideoItem, WatchHistoryItem } from "@/types/library";
 import type { PodcastFeed, PodcastResolveResult } from "@/lib/podcastRss";
 
 const STORAGE_KEY = "myvidtv_library";
+
+export function videoItem(overrides: Partial<VideoItem> = {}): VideoItem {
+  return {
+    type: "video",
+    ytId: "dQw4w9WgXcQ",
+    title: "Seeded Long Video Title For Mobile Layout Verification",
+    channelName: "Seeded Channel",
+    thumbnail: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    tags: ["music"],
+    addedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+export async function mockYouTubeIframeApi(page: Page): Promise<void> {
+  await page.route("https://www.youtube.com/iframe_api", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: `
+        window.__ytPlayerCreateCount = window.__ytPlayerCreateCount || 0;
+        window.YT = {
+          PlayerState: { ENDED: 0, PLAYING: 1, PAUSED: 2 },
+          Player: function(el, opts) {
+            window.__ytPlayerCreateCount += 1;
+            window.__ytTriggerEnded = function() {
+              opts.events?.onStateChange?.({ data: 0 });
+            };
+            this.loadVideoById = function() { opts.events?.onStateChange?.({ data: 1 }); };
+            this.cuePlaylist = function() {};
+            this.playVideo = function() { opts.events?.onStateChange?.({ data: 1 }); };
+            this.pauseVideo = function() { opts.events?.onStateChange?.({ data: 2 }); };
+            this.nextVideo = function() {};
+            this.seekTo = function() {};
+            this.getCurrentTime = function() { return 30; };
+            this.getDuration = function() { return 120; };
+            this.getPlayerState = function() { return 1; };
+            this.destroy = function() {};
+            setTimeout(() => opts.events?.onReady?.(), 10);
+          }
+        };
+        setTimeout(() => window.onYouTubeIframeAPIReady?.(), 10);
+      `,
+    });
+  });
+}
+
+export async function mockYouTubeOEmbed(
+  page: Page,
+  meta: { title: string; author_name: string } = {
+    title: "Mocked YouTube Video",
+    author_name: "Mocked Creator",
+  }
+): Promise<void> {
+  await page.route("https://www.youtube.com/oembed?**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(meta),
+    });
+  });
+}
 
 export function watchHistoryEntry(overrides: Partial<WatchHistoryItem> = {}): WatchHistoryItem {
   return {

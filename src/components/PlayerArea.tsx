@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { usePlayer, getItemId } from "@/hooks/usePlayer";
+import { useIsTouch } from "@/hooks/useLayout";
 import type { Layout } from "@/hooks/useLayout";
 import type { LibraryItem, PodcastEpisodeItem } from "@/types/library";
 
@@ -15,12 +16,13 @@ type PlayerAreaProps = {
   channelContext?: { channelId: string; title: string } | null;
   onOpenChannel?: () => void;
   layout?: Layout;
+  backgroundInert?: boolean;
 };
 
-export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded, channelContext, onOpenChannel, layout = "desktop" }: PlayerAreaProps) {
+export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded, channelContext, onOpenChannel, layout = "desktop", backgroundInert = false }: PlayerAreaProps) {
   const { items, updateSettings, settings } = useLibrary();
-  const isMobile = layout === "phone";
-  const isTouch = layout !== "desktop";
+  const isTouch = useIsTouch();
+  const listenBarRef = useRef<HTMLDivElement>(null);
 
   const {
     containerRef,
@@ -81,12 +83,44 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
   const isListen = mode === "listen";
   const displayItem = playerCurrentItem ?? currentItem;
   const isPodcastEpisode = displayItem?.type === "podcast-episode";
+
+  // Measure the fixed phone listen bar height so the library sheet and peek bar stay clear
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!isListen || !displayItem || layout !== "phone") {
+      root.style.setProperty("--phone-listen-bar-height", "0px");
+      return;
+    }
+
+    const el = listenBarRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      const height = Math.ceil(el.getBoundingClientRect().height);
+      root.style.setProperty("--phone-listen-bar-height", `${height}px`);
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        root.style.setProperty("--phone-listen-bar-height", "0px");
+      };
+    }
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.setProperty("--phone-listen-bar-height", "0px");
+    };
+  }, [isListen, displayItem, layout]);
+
   const mobileTitleWrapStyle = {
     fontSize: "13px",
     color: "var(--text)",
     fontWeight: 500,
     lineHeight: 1.3,
-    minHeight: "2.6em",
     whiteSpace: "normal" as const,
     overflowWrap: "anywhere" as const,
   };
@@ -94,6 +128,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
   const placeholderInner = (
     <>
       <svg
+        aria-hidden="true"
         width="32"
         height="32"
         viewBox="0 0 24 24"
@@ -119,8 +154,16 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
         background: "var(--bg)",
       }}
     >
-      {/* YouTube IFrame container — phone/tablet: 16:9 aspect ratio; desktop: flex height */}
+      {/* YouTube IFrame container — phone/tablet: capped 16:9 or flex in landscape; desktop: flex height */}
       <div
+        inert={backgroundInert}
+        className={
+          isListen || layout === "desktop"
+            ? undefined
+            : layout === "phone"
+            ? "player-video-stage-phone"
+            : "player-video-stage-tablet"
+        }
         style={
           layout === "desktop"
             ? {
@@ -130,14 +173,19 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                 position: "relative",
                 background: "#000",
               }
-            : {
+            : isListen
+            ? {
                 width: "100%",
-                aspectRatio: isListen ? undefined : "16/9",
-                flex: isListen ? "0 0 0" : undefined,
+                flex: "0 0 0",
                 overflow: "hidden",
                 position: "relative",
                 background: "#000",
                 flexShrink: 0,
+              }
+            : {
+                overflow: "hidden",
+                position: "relative",
+                background: "#000",
               }
         }
       >
@@ -163,11 +211,11 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               alignItems: "center",
               justifyContent: "center",
               background: "linear-gradient(180deg, rgba(0,0,0,0.86), rgba(0,0,0,0.94))",
-              padding: "24px",
-              gap: "14px",
+              padding: layout === "phone" ? "12px" : "24px",
+              gap: layout === "phone" ? "8px" : "14px",
             }}
           >
-            <PodcastArtwork item={displayItem as PodcastEpisodeItem} size={layout === "phone" ? 160 : 260} />
+            <PodcastArtwork item={displayItem as PodcastEpisodeItem} size={layout === "phone" ? 132 : 260} />
             {audioError && (
               <div
                 role="alert"
@@ -202,12 +250,12 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                 color: "var(--text-muted)",
                 cursor: "pointer",
               }}
-              onMouseEnter={isMobile ? undefined : (e) => {
+              onMouseEnter={isTouch ? undefined : (e) => {
                 const svg = e.currentTarget.querySelector("svg") as SVGElement | null;
                 if (svg) svg.style.opacity = "0.65";
                 e.currentTarget.style.boxShadow = "inset 0 0 60px var(--violet-glow)";
               }}
-              onMouseLeave={isMobile ? undefined : (e) => {
+              onMouseLeave={isTouch ? undefined : (e) => {
                 const svg = e.currentTarget.querySelector("svg") as SVGElement | null;
                 if (svg) svg.style.opacity = "0.35";
                 e.currentTarget.style.boxShadow = "";
@@ -237,6 +285,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
       {/* Now-playing bar */}
       {displayItem && !isListen && (
         <div
+          inert={backgroundInert}
           style={{
             background: "var(--surface-3)",
             borderTop: "2px solid var(--border-hi)",
@@ -245,8 +294,9 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
         >
           {/* Progress bar — touch-target wrapper expands hit area on phone */}
           <div
+            className={layout === "phone" ? "phone-progress-wrap" : undefined}
             style={{
-              padding: layout === "phone" ? "21px 0" : "0",
+              padding: layout === "phone" ? undefined : "0",
               cursor: "pointer",
               background: "transparent",
             }}
@@ -270,11 +320,63 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
           {/* Phone: two-row layout — metadata row then actions row */}
           {layout === "phone" ? (
-            <div style={{ padding: "8px 16px" }}>
+            <div className="phone-now-playing">
               <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
                 <NowPlayingThumbnail item={displayItem} width={44} height={displayItem.type === "podcast-episode" ? 44 : 25} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={mobileTitleWrapStyle}>
+                  <div className="phone-title-wrap" style={mobileTitleWrapStyle}>
+                    {displayItem.title}
+                  </div>
+                  {displayItem.type === "podcast-episode" ? (
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{displayItem.podcastTitle}</div>
+                  ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
+                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                      {displayItem.channelName} ↗
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", flexWrap: "nowrap" }}>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget isTouch={isTouch} compact>−10</ControlBtn>
+                )}
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget isTouch={isTouch} compact>
+                  {playing ? "⏸" : "▶"}
+                </ControlBtn>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget isTouch={isTouch} compact>+10</ControlBtn>
+                )}
+                <ControlBtn onClick={skipNext} label="Skip" largeTarget isTouch={isTouch} compact>⏭</ControlBtn>
+                <ControlBtn
+                  onClick={toggleLoop}
+                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+                  active={loopMode !== "off"}
+                  largeTarget
+                  isTouch={isTouch}
+                  compact
+                >
+                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+                </ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} largeTarget isTouch={isTouch} compact>
+                  {isListen ? "👁" : "♪"}
+                </ControlBtn>
+              </div>
+            </div>
+          ) : (
+            /* Tablet + desktop: single-row layout (wraps cleanly on narrow tablet landscape) */
+            <div
+              style={
+                layout === "tablet"
+                  ? { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 10px", padding: "8px 12px" }
+                  : { display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px" }
+              }
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" ? "10px" : "12px", flex: layout === "tablet" ? "1 1 180px" : "1", minWidth: 0 }}>
+                <NowPlayingThumbnail item={displayItem} width={48} height={displayItem.type === "podcast-episode" ? 48 : 27} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
@@ -288,69 +390,28 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                   ))}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" && isTouch ? "4px" : "6px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile compact>−10</ControlBtn>
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>−10</ControlBtn>
                 )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile compact>
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>
                   {playing ? "⏸" : "▶"}
                 </ControlBtn>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile compact>+10</ControlBtn>
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>+10</ControlBtn>
                 )}
-                <ControlBtn onClick={skipNext} label="Skip" isMobile compact>⏭</ControlBtn>
+                <ControlBtn onClick={skipNext} label="Skip" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>⏭</ControlBtn>
                 <ControlBtn
                   onClick={toggleLoop}
                   label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
                   active={loopMode !== "off"}
-                  isMobile
-                  compact
+                  largeTarget={isTouch}
+                  isTouch={isTouch}
+                  compact={layout === "tablet" && isTouch}
                 >
                   {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
                 </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} isMobile compact>
-                  {isListen ? "👁" : "♪"}
-                </ControlBtn>
-              </div>
-            </div>
-          ) : (
-            /* Tablet + desktop: single-row layout */
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 16px" }}>
-              <NowPlayingThumbnail item={displayItem} width={48} height={displayItem.type === "podcast-episode" ? 48 : 27} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {displayItem.title}
-                </div>
-                {displayItem.type === "podcast-episode" ? (
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
-                ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
-                  <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
-                    {displayItem.channelName} ↗
-                  </button>
-                ) : (
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
-                ))}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isTouch}>−10</ControlBtn>
-                )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isTouch}>
-                  {playing ? "⏸" : "▶"}
-                </ControlBtn>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isTouch}>+10</ControlBtn>
-                )}
-                <ControlBtn onClick={skipNext} label="Skip" isMobile={isTouch}>⏭</ControlBtn>
-                <ControlBtn
-                  onClick={toggleLoop}
-                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                  active={loopMode !== "off"}
-                  isMobile={isTouch}
-                >
-                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-                </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} isMobile={isTouch}>
+                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>
                   {isListen ? "👁" : "♪"}
                 </ControlBtn>
               </div>
@@ -363,6 +424,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
       {/* Tablet: in-flow (library stays visible). Phone/desktop: fixed overlay. */}
       {isListen && displayItem && (
         <div
+          ref={listenBarRef}
           style={layout === "tablet" ? {
             background: "var(--surface)",
             borderTop: "1px solid var(--violet)",
@@ -380,8 +442,9 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
           {/* Progress bar — touch-target wrapper on phone */}
           {(displayItem.type === "video" || displayItem.type === "podcast-episode") && (
             <div
+              className={layout === "phone" ? "phone-progress-wrap" : undefined}
               style={{
-                padding: layout === "phone" ? "21px 0" : "0",
+                padding: layout === "phone" ? undefined : "0",
                 cursor: "pointer",
                 background: "transparent",
               }}
@@ -405,11 +468,68 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
           {/* Phone: two-row layout — metadata row then actions row */}
           {layout === "phone" ? (
-            <div style={{ padding: "8px 16px", paddingBottom: "calc(8px + env(safe-area-inset-bottom))" }}>
+            <div
+              style={{
+                padding: "8px 12px",
+                paddingLeft: "max(12px, env(safe-area-inset-left, 0px))",
+                paddingRight: "max(12px, env(safe-area-inset-right, 0px))",
+                paddingBottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "6px" }}>
-                <span style={{ color: "var(--violet-soft)", fontSize: "14px", lineHeight: 1, marginTop: "2px" }}>♪</span>
+                <span aria-hidden="true" style={{ color: "var(--violet-soft)", fontSize: "14px", lineHeight: 1, marginTop: "2px" }}>♪</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ ...mobileTitleWrapStyle, fontWeight: 400 }}>
+                  <div className="phone-title-wrap" style={{ ...mobileTitleWrapStyle, fontWeight: 400 }}>
+                    {displayItem.title}
+                  </div>
+                  {displayItem.type === "podcast-episode" ? (
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{displayItem.podcastTitle}</div>
+                  ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
+                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                      {displayItem.channelName} ↗
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", flexWrap: "nowrap" }}>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget isTouch={isTouch} compact>−10</ControlBtn>
+                )}
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget isTouch={isTouch} compact>
+                  {playing ? "⏸" : "▶"}
+                </ControlBtn>
+                {canSeekFixedStep && (
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget isTouch={isTouch} compact>+10</ControlBtn>
+                )}
+                <ControlBtn onClick={skipNext} label="Skip" largeTarget isTouch={isTouch} compact>⏭</ControlBtn>
+                <ControlBtn
+                  onClick={toggleLoop}
+                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+                  active={loopMode !== "off"}
+                  largeTarget
+                  isTouch={isTouch}
+                  compact
+                >
+                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
+                </ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label="Watch" active largeTarget isTouch={isTouch} compact>👁</ControlBtn>
+              </div>
+            </div>
+          ) : (
+            /* Tablet + desktop: single-row layout (wraps cleanly on narrow tablet landscape) */
+            <div
+              style={
+                layout === "tablet"
+                  ? { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 10px", padding: "8px 12px" }
+                  : { display: "flex", alignItems: "center", gap: "12px", padding: "8px 16px" }
+              }
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" ? "10px" : "12px", flex: layout === "tablet" ? "1 1 180px" : "1", minWidth: 0 }}>
+                <span aria-hidden="true" style={{ color: "var(--violet-soft)", fontSize: "16px", flexShrink: 0 }}>♪</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
@@ -423,67 +543,28 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                   ))}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ display: "flex", gap: layout === "tablet" && isTouch ? "4px" : "6px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile compact>−10</ControlBtn>
+                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>−10</ControlBtn>
                 )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile compact>
+                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>
                   {playing ? "⏸" : "▶"}
                 </ControlBtn>
                 {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile compact>+10</ControlBtn>
+                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>+10</ControlBtn>
                 )}
-                <ControlBtn onClick={skipNext} label="Skip" isMobile compact>⏭</ControlBtn>
+                <ControlBtn onClick={skipNext} label="Skip" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>⏭</ControlBtn>
                 <ControlBtn
                   onClick={toggleLoop}
                   label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
                   active={loopMode !== "off"}
-                  isMobile
-                  compact
+                  largeTarget={isTouch}
+                  isTouch={isTouch}
+                  compact={layout === "tablet" && isTouch}
                 >
                   {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
                 </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile compact>👁</ControlBtn>
-              </div>
-            </div>
-          ) : (
-            /* Tablet + desktop: single-row layout */
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 16px" }}>
-              <span style={{ color: "var(--violet-soft)", fontSize: "16px" }}>♪</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: "13px", color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {displayItem.title}
-                </div>
-                {displayItem.type === "podcast-episode" ? (
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
-                ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
-                  <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
-                    {displayItem.channelName} ↗
-                  </button>
-                ) : (
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: "6px" }}>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" isMobile={isTouch}>−10</ControlBtn>
-                )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} isMobile={isTouch}>
-                  {playing ? "⏸" : "▶"}
-                </ControlBtn>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" isMobile={isTouch}>+10</ControlBtn>
-                )}
-                <ControlBtn onClick={skipNext} label="Skip" isMobile={isTouch}>⏭</ControlBtn>
-                <ControlBtn
-                  onClick={toggleLoop}
-                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                  active={loopMode !== "off"}
-                  isMobile={isTouch}
-                >
-                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-                </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label="Watch" active isMobile={isTouch}>👁</ControlBtn>
+                <ControlBtn onClick={handleToggleMode} label="Watch" active largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>👁</ControlBtn>
               </div>
             </div>
           )}
@@ -503,7 +584,7 @@ function NowPlayingThumbnail({ item, width, height }: { item: LibraryItem; width
         // eslint-disable-next-line @next/next/no-img-element
         <img src={thumbnail} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       ) : (
-        <Image src={thumbnail} alt={item.title} fill style={{ objectFit: "cover" }} />
+        <Image src={thumbnail} alt={item.title} fill sizes={`${width}px`} style={{ objectFit: "cover" }} />
       )}
     </div>
   );
@@ -515,6 +596,9 @@ function PodcastArtwork({ item, size }: { item: PodcastEpisodeItem; size: number
       style={{
         width: size,
         height: size,
+        maxWidth: "100%",
+        maxHeight: "100%",
+        aspectRatio: "1 / 1",
         borderRadius: "8px",
         overflow: "hidden",
         background: "var(--surface-2)",
@@ -539,7 +623,8 @@ function ControlBtn({
   label,
   active,
   dim,
-  isMobile,
+  largeTarget,
+  isTouch,
   compact,
 }: {
   children: React.ReactNode;
@@ -547,7 +632,8 @@ function ControlBtn({
   label: string;
   active?: boolean;
   dim?: boolean;
-  isMobile?: boolean;
+  largeTarget?: boolean;
+  isTouch?: boolean;
   compact?: boolean;
 }) {
   const [showTooltip, setShowTooltip] = useState(false);
@@ -555,8 +641,8 @@ function ControlBtn({
   return (
     <div
       style={{ position: "relative", display: "inline-flex" }}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={isTouch ? undefined : () => setShowTooltip(true)}
+      onMouseLeave={isTouch ? undefined : () => setShowTooltip(false)}
     >
       <button
         onClick={onClick}
@@ -565,27 +651,29 @@ function ControlBtn({
           background: active ? "var(--violet-glow)" : "none",
           border: "none",
           borderRadius: "4px",
-          color: active ? "var(--violet-soft)" : "var(--text-muted)",
+          color: active ? "var(--violet-soft)" : largeTarget ? "var(--text)" : "var(--text-muted)",
           cursor: "pointer",
-          fontSize: isMobile ? "18px" : "14px",
+          fontSize: largeTarget ? "18px" : "14px",
           opacity: dim ? 0.35 : 1,
-          padding: isMobile ? (compact ? "12px 6px" : "12px 16px") : "4px 8px",
+          padding: largeTarget ? (compact ? "10px 6px" : "12px 16px") : "4px 8px",
           transition: "color 0.15s, opacity 0.15s",
-          minWidth: isMobile ? "44px" : undefined,
-          minHeight: isMobile ? "44px" : undefined,
+          minWidth: largeTarget ? "44px" : undefined,
+          minHeight: largeTarget ? "44px" : undefined,
+          whiteSpace: "nowrap",
+          flexShrink: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
-        onMouseEnter={isMobile ? undefined : (e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.opacity = "1"; }}
-        onMouseLeave={isMobile ? undefined : (e) => {
-          e.currentTarget.style.color = active ? "var(--violet-soft)" : "var(--text-muted)";
+        onMouseEnter={isTouch ? undefined : (e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.opacity = "1"; }}
+        onMouseLeave={isTouch ? undefined : (e) => {
+          e.currentTarget.style.color = active ? "var(--violet-soft)" : largeTarget ? "var(--text)" : "var(--text-muted)";
           e.currentTarget.style.opacity = dim ? "0.35" : "1";
         }}
       >
         {children}
       </button>
-      {showTooltip && !isMobile && (
+      {showTooltip && !isTouch && (
         <div
           style={{
             position: "absolute",

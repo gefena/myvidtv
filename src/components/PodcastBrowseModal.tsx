@@ -18,7 +18,12 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const isMobile = useLayout() === "phone";
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,7 +43,7 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
   }, [load]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape" && !e.repeat) onClose(); };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
@@ -58,11 +63,16 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 100,
+        zIndex: 200,
         padding: "20px",
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={podcast.title}
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
@@ -71,8 +81,9 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          maxHeight: "calc(100vh - 40px)",
+          maxHeight: "calc(100dvh - 40px)",
           overflow: "hidden",
+          outline: "none",
         }}
       >
         <div
@@ -80,12 +91,13 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            gap: "8px",
             padding: "16px 20px",
             borderBottom: "1px solid var(--border)",
             flexShrink: 0,
           }}
         >
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <span style={{ fontWeight: 600, fontSize: "15px", color: "var(--text)" }}>
               {podcast.title}
             </span>
@@ -104,20 +116,29 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: "none",
               border: "none",
-              color: "var(--text-muted)",
+              color: isMobile ? "var(--text-dim)" : "var(--text-muted)",
               cursor: "pointer",
               fontSize: "18px",
               lineHeight: 1,
+              flexShrink: 0,
+              ...(isMobile && {
+                minWidth: "40px",
+                minHeight: "40px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }),
             }}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         </div>
 
-        <div style={{ overflowY: "auto", padding: "12px" }}>
+        <div style={{ overflowY: "auto", overscrollBehavior: "contain", padding: "12px" }}>
           {loading && (
             <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "40px 0", fontSize: "14px" }}>
               Loading episodes...

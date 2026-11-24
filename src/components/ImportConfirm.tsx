@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLibrary } from "@/hooks/useLibrary";
 import type { LibraryData } from "@/types/library";
 
@@ -23,10 +23,15 @@ export function ImportConfirm({
 }: ImportConfirmProps) {
   const { importLibrary } = useLibrary();
   const [storageWarning, setStorageWarning] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onDismiss();
+      if (e.key === "Escape" && !e.repeat) onDismiss();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -61,6 +66,11 @@ export function ImportConfirm({
       onClick={onDismiss}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Import library"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
@@ -68,6 +78,10 @@ export function ImportConfirm({
           padding: "24px",
           maxWidth: "360px",
           width: "100%",
+          maxHeight: "calc(100dvh - 40px)",
+          overflowY: "auto",
+          overscrollBehavior: "contain",
+          outline: "none",
         }}
         onClick={(e) => e.stopPropagation()}
       >

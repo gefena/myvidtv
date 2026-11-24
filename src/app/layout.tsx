@@ -1,8 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter_Tight } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { LibraryProvider } from "@/contexts/LibraryContext";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 const interTight = Inter_Tight({
   variable: "--font-body",
@@ -55,6 +60,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="dark"
+      suppressHydrationWarning
       className={`${interTight.variable} h-full`}
     >
       <head>

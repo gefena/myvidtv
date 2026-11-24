@@ -20,11 +20,12 @@ export function EmptyState({ onAdd, hasArchived, onViewArchive, onImport }: Empt
   return (
     <div
       style={{
-        flex: 1,
+        margin: "auto",
+        width: "100%",
+        flexShrink: 0,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
         gap: "40px",
         padding: "40px 20px",
       }}
@@ -87,6 +88,7 @@ export function EmptyState({ onAdd, hasArchived, onViewArchive, onImport }: Empt
             placeholder="Paste a YouTube or podcast link..."
             style={{
               flex: 1,
+              minWidth: 0,
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: "6px",
