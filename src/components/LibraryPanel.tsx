@@ -7,6 +7,7 @@ import { useLibrary } from "@/hooks/useLibrary";
 import { TagPicker } from "./TagPicker";
 import { PREDEFINED_TAGS } from "@/lib/constants";
 import { getHistoryBadge, getHistoryKey, getHistoryMediaType, getLibraryItemId, getLibraryItemSubtitle } from "@/lib/mediaItems";
+import { useIsTouch } from "@/hooks/useLayout";
 import type { Layout } from "@/hooks/useLayout";
 import type { LibraryItem, VideoItem, ChannelItem, PodcastItem, WatchHistoryItem } from "@/types/library";
 
@@ -21,6 +22,7 @@ type LibraryPanelProps = {
   view: "library" | "archive" | "history";
   onViewChange: (view: "library" | "archive" | "history") => void;
   layout?: Layout;
+  bottomInset?: number | string;
   onBrowseChannel: (item: ChannelItem) => void;
   onBrowsePodcast: (item: PodcastItem) => void;
   onSelectHistory: (item: WatchHistoryItem) => void;
@@ -41,6 +43,7 @@ export function LibraryPanel({
   view,
   onViewChange,
   layout = "desktop",
+  bottomInset = 0,
   onBrowseChannel,
   onBrowsePodcast,
   onSelectHistory,
@@ -61,8 +64,8 @@ export function LibraryPanel({
 
   // phone-only behavior (sheet, mobile-specific nav)
   const isMobile = layout === "phone";
-  // touch sizing and no-hover treatment for phone + tablet
-  const isTouch = layout !== "desktop";
+  // touch sizing and no-hover treatment derived from pointer capability
+  const isTouch = useIsTouch();
 
   const tags = allTags();
   const displayItems = view === "library"
@@ -88,16 +91,18 @@ export function LibraryPanel({
         <div
           style={{
             display: "flex",
+            flexWrap: layout === "tablet" ? "wrap" : "nowrap",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 14px",
+            rowGap: layout === "tablet" ? "2px" : undefined,
+            padding: layout === "tablet" ? "2px 10px" : "0 14px",
             borderBottom: "1px solid var(--border)",
             flexShrink: 0,
             minHeight: "44px",
           }}
         >
           {/* Tab row: Library / History / Archive */}
-          <div style={{ display: "flex", gap: "2px" }}>
+          <div style={{ display: "flex", gap: "2px", flexShrink: 0 }}>
             {(["library", "history", "archive"] as const).map((v) => {
               const active = view === v;
               return (
@@ -109,7 +114,7 @@ export function LibraryPanel({
                     border: "none",
                     borderBottom: active ? "2px solid var(--violet)" : "2px solid transparent",
                     borderRadius: 0,
-                    color: active ? "var(--text)" : "var(--text-muted)",
+                    color: active ? "var(--text)" : layout === "tablet" ? "var(--text-dim)" : "var(--text-muted)",
                     cursor: "pointer",
                     fontSize: "12px",
                     fontWeight: active ? 500 : 400,
@@ -126,7 +131,7 @@ export function LibraryPanel({
           </div>
 
           {/* Utility buttons: Export / Import / Collapse */}
-          <div style={{ display: "flex", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "6px", ...(layout === "tablet" && { marginLeft: "auto" }) }}>
             {!isArchive && onExport && (
               <div
                 style={{ position: "relative", display: "inline-flex" }}
@@ -140,12 +145,12 @@ export function LibraryPanel({
                     background: "none",
                     border: "1px solid var(--border)",
                     borderRadius: "4px",
-                    color: "var(--text-muted)",
+                    color: layout === "tablet" ? "var(--text-dim)" : "var(--text-muted)",
                     cursor: "pointer",
                     fontSize: "11px",
                     padding: "3px 6px",
-                    minWidth: isTouch ? "44px" : undefined,
-                    minHeight: isTouch ? "44px" : undefined,
+                    minWidth: isTouch ? (layout === "tablet" ? "40px" : "44px") : undefined,
+                    minHeight: isTouch ? (layout === "tablet" ? "40px" : "44px") : undefined,
                     display: isTouch ? "flex" : undefined,
                     alignItems: isTouch ? "center" : undefined,
                     justifyContent: isTouch ? "center" : undefined,
@@ -175,12 +180,12 @@ export function LibraryPanel({
                     background: "none",
                     border: "1px solid var(--border)",
                     borderRadius: "4px",
-                    color: "var(--text-muted)",
+                    color: layout === "tablet" ? "var(--text-dim)" : "var(--text-muted)",
                     cursor: "pointer",
                     fontSize: "11px",
                     padding: "3px 6px",
-                    minWidth: isTouch ? "44px" : undefined,
-                    minHeight: isTouch ? "44px" : undefined,
+                    minWidth: isTouch ? (layout === "tablet" ? "40px" : "44px") : undefined,
+                    minHeight: isTouch ? (layout === "tablet" ? "40px" : "44px") : undefined,
                     display: isTouch ? "flex" : undefined,
                     alignItems: isTouch ? "center" : undefined,
                     justifyContent: isTouch ? "center" : undefined,
@@ -252,7 +257,7 @@ export function LibraryPanel({
                   background: active ? "var(--violet-glow)" : "none",
                   border: "1px solid var(--border)",
                   borderRadius: "4px",
-                  color: active ? "var(--violet-soft)" : "var(--text-muted)",
+                  color: active ? "var(--violet-soft)" : "var(--text-dim)",
                   cursor: "pointer",
                   fontSize: "12px",
                   minHeight: "44px",
@@ -290,7 +295,7 @@ export function LibraryPanel({
                   border: "none",
                   borderBottom: active ? `2px solid var(--violet)` : "2px solid transparent",
                   borderRadius: 0,
-                  color: active ? "var(--text)" : "var(--text-muted)",
+                  color: active ? "var(--text)" : isMobile ? "var(--text-dim)" : "var(--text-muted)",
                   cursor: "pointer",
                   fontSize: "12px",
                   fontWeight: active ? 600 : 400,
@@ -312,7 +317,22 @@ export function LibraryPanel({
       )}
 
       {/* Items list */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "8px",
+          ...(typeof bottomInset === "string"
+            ? {
+                paddingBottom: bottomInset,
+                scrollPaddingBottom: bottomInset,
+              }
+            : bottomInset > 0 && {
+                paddingBottom: `calc(${bottomInset}px + env(safe-area-inset-bottom, 0px))`,
+                scrollPaddingBottom: `calc(${bottomInset}px + env(safe-area-inset-bottom, 0px))`,
+              }),
+        }}
+      >
         {isHistory ? (
           <AnimatePresence mode="popLayout">
             {watchHistory.map((entry) => (
@@ -356,6 +376,7 @@ export function LibraryPanel({
                     isActive={isActive}
                     isArchive={isArchive}
                     isMobile={isTouch}
+                    layout={layout}
                     onSelect={() => {
                       if (isArchive) return;
                       if (item.type === "channel") {
@@ -444,7 +465,7 @@ function HistoryCard({
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
             ) : (
-              <Image src={entry.thumbnail} alt={entry.title} fill style={{ objectFit: "cover" }} />
+              <Image src={entry.thumbnail} alt={entry.title} fill sizes="80px" style={{ objectFit: "cover" }} />
             )
           )}
         </div>
@@ -512,6 +533,7 @@ function LibraryCard({
   isActive,
   isArchive,
   isMobile,
+  layout = "desktop",
   onSelect,
   onArchive,
   onRestore,
@@ -521,6 +543,7 @@ function LibraryCard({
   isActive: boolean;
   isArchive: boolean;
   isMobile: boolean;
+  layout?: Layout;
   onSelect: () => void;
   onArchive: () => void;
   onRestore: () => void;
@@ -582,6 +605,188 @@ function LibraryCard({
     justifyContent: "center" as const,
   });
 
+  const actionButtons = isArchive ? (
+    <>
+      {confirmingDelete ? (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            aria-label="Confirm delete"
+            style={{
+              background: "#f87171",
+              border: "none",
+              borderRadius: "4px",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: "11px",
+              fontWeight: 500,
+              padding: isMobile ? "8px 12px" : "3px 8px",
+              minHeight: isMobile ? "40px" : undefined,
+              lineHeight: 1.4,
+            }}
+          >
+            Delete
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmingDelete(false); }}
+            aria-label="Cancel delete"
+            style={{
+              background: "none",
+              border: "1px solid var(--border)",
+              borderRadius: "4px",
+              color: isMobile ? "var(--text-dim)" : "var(--text-muted)",
+              cursor: "pointer",
+              fontSize: "11px",
+              padding: isMobile ? "8px 12px" : "3px 8px",
+              minHeight: isMobile ? "40px" : undefined,
+              lineHeight: 1.4,
+            }}
+          >
+            No
+          </button>
+        </>
+      ) : (
+        <>
+          <div
+            style={{ position: "relative", display: "inline-flex" }}
+            onMouseEnter={() => setRestoreTooltip(true)}
+            onMouseLeave={() => setRestoreTooltip(false)}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); onRestore(); }}
+              aria-label="Restore"
+              style={actionBtnStyle("var(--violet-soft)")}
+            >
+              ↺
+            </button>
+            {restoreTooltip && !isMobile && (
+              <div
+                style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+              >
+                Restore
+              </div>
+            )}
+          </div>
+          <div
+            style={{ position: "relative", display: "inline-flex" }}
+            onMouseEnter={() => setDeleteTooltip(true)}
+            onMouseLeave={() => setDeleteTooltip(false)}
+          >
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
+              aria-label="Permanently Delete"
+              style={actionBtnStyle("#f87171")}
+            >
+              🗑
+            </button>
+            {deleteTooltip && !isMobile && (
+              <div
+                style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+              >
+                Delete
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  ) : editing ? (
+    <>
+      <button
+        onClick={handleSave}
+        aria-label="Save tags"
+        style={{
+          background: "var(--violet)",
+          border: "none",
+          borderRadius: "20px",
+          color: "#fff",
+          cursor: "pointer",
+          fontSize: "11px",
+          padding: isMobile ? "8px 14px" : "3px 10px",
+          minHeight: isMobile ? "40px" : undefined,
+          lineHeight: 1.4,
+        }}
+      >
+        Save
+      </button>
+      <button
+        onClick={handleCancel}
+        aria-label="Cancel editing"
+        style={{
+          background: "none",
+          border: "1px solid var(--border)",
+          borderRadius: "20px",
+          color: isMobile ? "var(--text-dim)" : "var(--text-muted)",
+          cursor: "pointer",
+          fontSize: "11px",
+          padding: isMobile ? "8px 14px" : "3px 10px",
+          minHeight: isMobile ? "40px" : undefined,
+          lineHeight: 1.4,
+        }}
+      >
+        Cancel
+      </button>
+    </>
+  ) : (
+    <>
+      <div
+        style={{ position: "relative", display: "inline-flex" }}
+        onMouseEnter={() => setTagsTooltip(true)}
+        onMouseLeave={() => setTagsTooltip(false)}
+      >
+        <button
+          onClick={handleEditOpen}
+          aria-label="Edit tags"
+          style={{
+            background: "none",
+            border: "none",
+            color: isMobile ? "var(--text-dim)" : "var(--text-muted)",
+            cursor: "pointer",
+            fontSize: "11px",
+            opacity: isMobile ? 0.7 : (hovered ? 1 : 0),
+            padding: isMobile ? "8px 10px" : "2px 6px",
+            transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
+            lineHeight: 1.4,
+            minWidth: isMobile ? "44px" : undefined,
+            minHeight: isMobile ? "44px" : undefined,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          # Tags
+        </button>
+        {tagsTooltip && !isMobile && (
+          <div
+            style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+          >
+            Edit tags
+          </div>
+        )}
+      </div>
+      <div
+        style={{ position: "relative", display: "inline-flex" }}
+        onMouseEnter={() => setArchiveTooltip(true)}
+        onMouseLeave={() => setArchiveTooltip(false)}
+      >
+        <button
+          onClick={(e) => { e.stopPropagation(); onArchive(); }}
+          aria-label="Archive item"
+          style={actionBtnStyle("#f87171", 0.7)}
+        >
+          ⊟
+        </button>
+        {archiveTooltip && !isMobile && (
+          <div
+            style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
+          >
+            Archive
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div
       style={{
@@ -618,7 +823,7 @@ function LibraryCard({
         }
       }}
     >
-      {/* Top row: thumbnail + info + action buttons */}
+      {/* Top row: thumbnail + info (+ desktop hover action buttons) */}
       <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
         {/* Thumbnail */}
         <div style={{ position: "relative", width: 80, height: 45, flexShrink: 0, borderRadius: "4px", overflow: "hidden" }}>
@@ -626,7 +831,7 @@ function LibraryCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumbnail} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : thumbnail ? (
-            <Image src={thumbnail} alt={title} fill style={{ objectFit: "cover" }} />
+            <Image src={thumbnail} alt={title} fill sizes="80px" style={{ objectFit: "cover" }} />
           ) : (
             <div style={{ width: "100%", height: "100%", background: "var(--border)" }} />
           )}
@@ -663,14 +868,27 @@ function LibraryCard({
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
+          <div style={isMobile ? {
+            fontSize: "13px", color: "var(--text)", fontWeight: isActive ? 500 : 400,
+            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            overflow: "hidden", overflowWrap: "anywhere",
+            lineHeight: 1.3, marginBottom: "3px",
+          } : {
             fontSize: "13px", color: "var(--text)", fontWeight: isActive ? 500 : 400,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             lineHeight: 1.3, marginBottom: "3px",
           }}>
             {title}
           </div>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{sub}</div>
+          <div
+            style={
+              layout !== "desktop"
+                ? { fontSize: "11px", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+                : { fontSize: "11px", color: "var(--text-muted)" }
+            }
+          >
+            {sub}
+          </div>
           {!isArchive && !editing && item.tags.length > 0 && (
             <div style={{ display: "flex", gap: "3px", flexWrap: "wrap", marginTop: "4px" }}>
               {item.tags.slice(0, 3).map((tag) => (
@@ -691,187 +909,20 @@ function LibraryCard({
           )}
         </div>
 
-        {/* Action buttons */}
-        <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-          {isArchive ? (
-            <>
-              {confirmingDelete ? (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                    aria-label="Confirm delete"
-                    style={{
-                      background: "#f87171",
-                      border: "none",
-                      borderRadius: "4px",
-                      color: "#fff",
-                      cursor: "pointer",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                      padding: "3px 8px",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmingDelete(false); }}
-                    aria-label="Cancel delete"
-                    style={{
-                      background: "none",
-                      border: "1px solid var(--border)",
-                      borderRadius: "4px",
-                      color: "var(--text-muted)",
-                      cursor: "pointer",
-                      fontSize: "11px",
-                      padding: "3px 8px",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    No
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{ position: "relative", display: "inline-flex" }}
-                    onMouseEnter={() => setRestoreTooltip(true)}
-                    onMouseLeave={() => setRestoreTooltip(false)}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onRestore(); }}
-                      aria-label="Restore"
-                      style={actionBtnStyle("var(--violet-soft)")}
-                    >
-                      ↺
-                    </button>
-                    {restoreTooltip && !isMobile && (
-                      <div
-                        style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
-                      >
-                        Restore
-                      </div>
-                    )}
-                  </div>
-                  <div
-                    style={{ position: "relative", display: "inline-flex" }}
-                    onMouseEnter={() => setDeleteTooltip(true)}
-                    onMouseLeave={() => setDeleteTooltip(false)}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setConfirmingDelete(true); }}
-                      aria-label="Permanently Delete"
-                      style={actionBtnStyle("#f87171")}
-                    >
-                      🗑
-                    </button>
-                    {deleteTooltip && !isMobile && (
-                      <div
-                        style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
-                      >
-                        Delete
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </>
-          ) : editing ? (
-            <>
-              <button
-                onClick={handleSave}
-                aria-label="Save tags"
-                style={{
-                  background: "var(--violet)",
-                  border: "none",
-                  borderRadius: "20px",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  padding: "3px 10px",
-                  lineHeight: 1.4,
-                }}
-              >
-                Save
-              </button>
-              <button
-                onClick={handleCancel}
-                aria-label="Cancel editing"
-                style={{
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  borderRadius: "20px",
-                  color: "var(--text-muted)",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  padding: "3px 10px",
-                  lineHeight: 1.4,
-                }}
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <>
-              <div
-                style={{ position: "relative", display: "inline-flex" }}
-                onMouseEnter={() => setTagsTooltip(true)}
-                onMouseLeave={() => setTagsTooltip(false)}
-              >
-                <button
-                  onClick={handleEditOpen}
-                  aria-label="Edit tags"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: isMobile ? "var(--text-muted)" : "var(--text-muted)",
-                    cursor: "pointer",
-                    fontSize: "11px",
-                    opacity: isMobile ? 0.7 : (hovered ? 1 : 0),
-                    padding: isMobile ? "8px 10px" : "2px 6px",
-                    transition: isMobile ? undefined : "opacity 0.15s, color 0.15s",
-                    lineHeight: 1.4,
-                    minWidth: isMobile ? "44px" : undefined,
-                    minHeight: isMobile ? "44px" : undefined,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  # Tags
-                </button>
-                {tagsTooltip && !isMobile && (
-                  <div
-                    style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
-                  >
-                    Edit tags
-                  </div>
-                )}
-              </div>
-              <div
-                style={{ position: "relative", display: "inline-flex" }}
-                onMouseEnter={() => setArchiveTooltip(true)}
-                onMouseLeave={() => setArchiveTooltip(false)}
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); onArchive(); }}
-                  aria-label="Archive item"
-                  style={actionBtnStyle("#f87171", 0.7)}
-                >
-                  ⊟
-                </button>
-                {archiveTooltip && !isMobile && (
-                  <div
-                    style={{ position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--text-muted)", fontSize: "11px", padding: "3px 7px", whiteSpace: "nowrap", pointerEvents: "none", zIndex: 10 }}
-                  >
-                    Archive
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        {/* Desktop hover action buttons */}
+        {!isMobile && (
+          <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
+            {actionButtons}
+          </div>
+        )}
       </div>
+
+      {/* Touch action row — keeps full width available for titles in narrow mobile/tablet sidebars */}
+      {isMobile && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "4px", marginTop: "2px" }}>
+          {actionButtons}
+        </div>
+      )}
 
       {/* Watch progress bar — video items only, shown when ratio > 0 */}
       {item.type === "video" && !isArchive && !editing && !!((item as VideoItem).lastWatchedRatio) && (

@@ -4,16 +4,18 @@ import { ThemeToggle } from "./ThemeToggle";
 
 type HeaderProps = {
   onAdd: () => void;
+  inert?: boolean;
 };
 
-export function Header({ onAdd }: HeaderProps) {
+export function Header({ onAdd, inert = false }: HeaderProps) {
   return (
     <header
+      className="app-header"
+      inert={inert}
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "12px 20px",
         borderBottom: "1px solid var(--border)",
         background: "var(--surface)",
         flexShrink: 0,
@@ -41,6 +43,7 @@ export function Header({ onAdd }: HeaderProps) {
         <ThemeToggle />
         <button
           onClick={onAdd}
+          className="phone-header-btn"
           style={{
             background: "var(--violet)",
             border: "none",

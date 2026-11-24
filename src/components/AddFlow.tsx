@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
+import { useLayout } from "@/hooks/useLayout";
 import { TagPicker } from "./TagPicker";
 import { extractVideoId, fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
 import { isChannelUrl, resolveChannelId, fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
@@ -34,6 +35,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
   const [playlistName, setPlaylistName] = useState("");
   const [channelName, setChannelName] = useState("");
   const overlayRef = useRef<HTMLDivElement>(null);
+  const isMobile = useLayout() === "phone";
 
   const handleUrlSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,7 +211,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !e.repeat) onClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -231,11 +233,14 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 100,
+        zIndex: 200,
         padding: "20px",
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add to MyVidTV"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border-hi)",
@@ -243,6 +248,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
           borderRadius: "12px",
           maxWidth: "480px",
           width: "100%",
+          maxHeight: "calc(100dvh - 40px)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -256,6 +262,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
             justifyContent: "space-between",
             padding: "16px 20px",
             borderBottom: "1px solid var(--border)",
+            flexShrink: 0,
           }}
         >
           <span style={{ fontWeight: 600, fontSize: "15px", color: "var(--text)" }}>
@@ -263,21 +270,29 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
           </span>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: "none",
               border: "none",
-              color: "var(--text-muted)",
+              color: isMobile ? "var(--text-dim)" : "var(--text-muted)",
               cursor: "pointer",
               fontSize: "18px",
               lineHeight: 1,
+              ...(isMobile && {
+                minWidth: "40px",
+                minHeight: "40px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }),
             }}
           >
-            ×
+            <span aria-hidden="true">×</span>
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto", overscrollBehavior: "contain" }}>
 
           {/* ── URL input ── */}
           {step.name === "input" && (
@@ -290,6 +305,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                 autoFocus
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   background: "var(--surface-2)",
                   border: "1px solid var(--border)",
                   borderRadius: "6px",
@@ -358,10 +374,10 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
               <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                 {step.meta.thumbnail && (
                   <div style={{ position: "relative", width: 120, height: 68, flexShrink: 0, borderRadius: "4px", overflow: "hidden" }}>
-                    <Image src={step.meta.thumbnail} alt={step.meta.title} fill style={{ objectFit: "cover" }} />
+                    <Image src={step.meta.thumbnail} alt={step.meta.title} fill sizes="120px" style={{ objectFit: "cover" }} />
                   </div>
                 )}
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500, fontSize: "14px", color: "var(--text)", marginBottom: "4px" }}>
                     {step.meta.title}
                   </div>
@@ -468,7 +484,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
                     <img src={step.meta.thumbnail} alt={step.meta.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   </div>
                 )}
-                <div>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500, fontSize: "14px", color: "var(--text)", marginBottom: "4px" }}>
                     {step.meta.title}
                   </div>
