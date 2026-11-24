@@ -177,42 +177,54 @@ test("mobile layout renders full-width 16:9 player, single-row >=40px controls, 
   await mockYouTubeIframeApi(page);
 
   await seedLibrary(page, { items: [videoItem()] });
+  await expect(page.getByTestId("player-video-stage")).toBeVisible();
 
   for (const width of [360, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
 
-    const initialMetrics = await page.evaluate(() => {
-      const container = document.getElementById("yt-player")?.parentElement;
-      const rect = container?.getBoundingClientRect();
-      return {
-        innerWidth: window.innerWidth,
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-        playerWidth: rect?.width ?? 0,
-        playerHeight: rect?.height ?? 0,
-        hasDesktopCollapse: Boolean(document.querySelector('button[aria-label="Collapse library"]')),
-      };
-    });
+    const measureInitial = () =>
+      page.evaluate(() => {
+        const stage = document.querySelector('[data-testid="player-video-stage"]')?.getBoundingClientRect();
+        const frame = document.querySelector(".player-yt-frame")?.getBoundingClientRect();
+        return {
+          innerWidth: window.innerWidth,
+          clientWidth: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          stageWidth: stage?.width ?? 0,
+          stageHeight: stage?.height ?? 0,
+          frameWidth: frame?.width ?? 0,
+          frameHeight: frame?.height ?? 0,
+          hasDesktopCollapse: Boolean(document.querySelector('button[aria-label="Collapse library"]')),
+        };
+      });
+
+    await expect.poll(async () => Math.abs((await measureInitial()).stageWidth - width)).toBeLessThanOrEqual(2);
+    const initialMetrics = await measureInitial();
 
     expect(initialMetrics.scrollWidth).toBeLessThanOrEqual(initialMetrics.clientWidth);
     expect(initialMetrics.scrollWidth).toBeLessThanOrEqual(initialMetrics.innerWidth);
-    expect(Math.abs(initialMetrics.playerWidth - width)).toBeLessThanOrEqual(2);
-    expect(initialMetrics.playerWidth / initialMetrics.playerHeight).toBeCloseTo(16 / 9, 1);
+    expect(Math.abs(initialMetrics.stageWidth - width)).toBeLessThanOrEqual(2);
+    expect(initialMetrics.stageWidth / initialMetrics.stageHeight).toBeCloseTo(16 / 9, 1);
+    expect(Math.abs(initialMetrics.frameWidth - width)).toBeLessThanOrEqual(2);
+    expect(initialMetrics.frameWidth / initialMetrics.frameHeight).toBeCloseTo(16 / 9, 1);
     expect(initialMetrics.hasDesktopCollapse).toBe(false);
   }
 
   // Short portrait height (420x430): max-height cap preserves 16:9 letterboxed frame without distortion
   await page.setViewportSize({ width: 420, height: 430 });
-  const shortPortrait = await page.evaluate(() => {
-    const stage = document.querySelector('[data-testid="player-video-stage"]')?.getBoundingClientRect();
-    const frame = document.getElementById("yt-player")?.parentElement?.getBoundingClientRect();
-    return {
-      stageHeight: stage?.height ?? 0,
-      stageWidth: stage?.width ?? 0,
-      frameWidth: frame?.width ?? 0,
-      frameHeight: frame?.height ?? 0,
-    };
-  });
+  const measureShortPortrait = () =>
+    page.evaluate(() => {
+      const stage = document.querySelector('[data-testid="player-video-stage"]')?.getBoundingClientRect();
+      const frame = document.querySelector(".player-yt-frame")?.getBoundingClientRect();
+      return {
+        stageHeight: stage?.height ?? 0,
+        stageWidth: stage?.width ?? 0,
+        frameWidth: frame?.width ?? 0,
+        frameHeight: frame?.height ?? 0,
+      };
+    });
+  await expect.poll(async () => (await measureShortPortrait()).stageHeight).toBeLessThanOrEqual(192);
+  const shortPortrait = await measureShortPortrait();
   expect(shortPortrait.stageHeight).toBeGreaterThanOrEqual(150);
   expect(shortPortrait.stageHeight).toBeLessThanOrEqual(192);
   expect(shortPortrait.frameWidth / shortPortrait.frameHeight).toBeCloseTo(16 / 9, 1);
@@ -523,30 +535,34 @@ test("mobile landscape viewports (844x390, 667x375, 568x320) keep controls and l
   await page.setViewportSize({ width: 568, height: 320 });
   await expect(page.getByTestId("phone-open-library")).toBeVisible();
   await expect(page.getByRole("button", { name: "Back 10 seconds" })).toBeVisible();
-  const shortPhone = await page.evaluate(() => {
-    const stage = document.querySelector('[data-testid="player-video-stage"]')?.getBoundingClientRect();
-    const frame = document.getElementById("yt-player")?.parentElement?.getBoundingClientRect();
-    const labels = ["Back 10 seconds", "Pause", "Play", "Forward 10 seconds", "Skip", "Loop: off", "Listen"];
-    const controls = labels
-      .map((label) => {
-        const el = document.querySelector(`button[aria-label="${label}"]`);
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return { label, top: r.top, bottom: r.bottom, right: r.right };
-      })
-      .filter((b): b is NonNullable<typeof b> => b !== null);
-    const openLib = document.querySelector('[data-testid="phone-open-library"]')?.getBoundingClientRect();
-    return {
-      innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
-      scrollWidth: document.documentElement.scrollWidth,
-      stageHeight: stage?.height ?? 0,
-      frameWidth: frame?.width ?? 0,
-      frameHeight: frame?.height ?? 0,
-      controls,
-      openLib,
-    };
-  });
+  const measureShortPhone = () =>
+    page.evaluate(() => {
+      const stage = document.querySelector('[data-testid="player-video-stage"]')?.getBoundingClientRect();
+      const frame = document.querySelector(".player-yt-frame")?.getBoundingClientRect();
+      const labels = ["Back 10 seconds", "Pause", "Play", "Forward 10 seconds", "Skip", "Loop: off", "Listen"];
+      const controls = labels
+        .map((label) => {
+          const el = document.querySelector(`button[aria-label="${label}"]`);
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { label, top: r.top, bottom: r.bottom, right: r.right };
+        })
+        .filter((b): b is NonNullable<typeof b> => b !== null);
+      const openLib = document.querySelector('[data-testid="phone-open-library"]')?.getBoundingClientRect();
+      return {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+        stageWidth: stage?.width ?? 0,
+        stageHeight: stage?.height ?? 0,
+        frameWidth: frame?.width ?? 0,
+        frameHeight: frame?.height ?? 0,
+        controls,
+        openLib,
+      };
+    });
+  await expect.poll(async () => Math.abs((await measureShortPhone()).stageWidth - 568)).toBeLessThanOrEqual(2);
+  const shortPhone = await measureShortPhone();
   expect(shortPhone.scrollWidth).toBeLessThanOrEqual(shortPhone.innerWidth);
   expect(shortPhone.stageHeight).toBeGreaterThanOrEqual(150);
   expect(shortPhone.frameWidth / shortPhone.frameHeight).toBeCloseTo(16 / 9, 1);
@@ -803,31 +819,40 @@ test("desktop window resizes preserve 601px+ desktop mode, auto-open phone libra
     await page.setViewportSize({ width, height: 844 });
     await expect(page.getByRole("button", { name: "Collapse library" })).not.toBeAttached();
 
-    const phoneMetrics = await page.evaluate(() => {
-      const rect = document.getElementById("yt-player")?.parentElement?.getBoundingClientRect();
-      const labels = ["Back 10 seconds", "Pause", "Play", "Forward 10 seconds", "Skip", "Loop: off", "Listen"];
-      const controls = labels
-        .map((label) => {
-          const el = document.querySelector(`button[aria-label="${label}"]`);
-          if (!el) return null;
-          const r = el.getBoundingClientRect();
-          return { label, left: r.left, right: r.right, top: r.top, width: r.width, height: r.height };
-        })
-        .filter((b): b is NonNullable<typeof b> => b !== null);
-      return {
-        innerWidth: window.innerWidth,
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-        playerWidth: rect?.width ?? 0,
-        playerHeight: rect?.height ?? 0,
-        controls,
-      };
-    });
+    const measurePhone = () =>
+      page.evaluate(() => {
+        const stage = document.querySelector('[data-testid="player-video-stage"]')?.getBoundingClientRect();
+        const frame = document.querySelector(".player-yt-frame")?.getBoundingClientRect();
+        const labels = ["Back 10 seconds", "Pause", "Play", "Forward 10 seconds", "Skip", "Loop: off", "Listen"];
+        const controls = labels
+          .map((label) => {
+            const el = document.querySelector(`button[aria-label="${label}"]`);
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return { label, left: r.left, right: r.right, top: r.top, width: r.width, height: r.height };
+          })
+          .filter((b): b is NonNullable<typeof b> => b !== null);
+        return {
+          innerWidth: window.innerWidth,
+          clientWidth: document.documentElement.clientWidth,
+          scrollWidth: document.documentElement.scrollWidth,
+          stageWidth: stage?.width ?? 0,
+          stageHeight: stage?.height ?? 0,
+          frameWidth: frame?.width ?? 0,
+          frameHeight: frame?.height ?? 0,
+          controls,
+        };
+      });
+
+    await expect.poll(async () => Math.abs((await measurePhone()).stageWidth - width)).toBeLessThanOrEqual(2);
+    const phoneMetrics = await measurePhone();
 
     expect(phoneMetrics.scrollWidth).toBeLessThanOrEqual(phoneMetrics.clientWidth);
     expect(phoneMetrics.scrollWidth).toBeLessThanOrEqual(phoneMetrics.innerWidth);
-    expect(Math.abs(phoneMetrics.playerWidth - width)).toBeLessThanOrEqual(2);
-    expect(phoneMetrics.playerWidth / phoneMetrics.playerHeight).toBeCloseTo(16 / 9, 1);
+    expect(Math.abs(phoneMetrics.stageWidth - width)).toBeLessThanOrEqual(2);
+    expect(phoneMetrics.stageWidth / phoneMetrics.stageHeight).toBeCloseTo(16 / 9, 1);
+    expect(Math.abs(phoneMetrics.frameWidth - width)).toBeLessThanOrEqual(2);
+    expect(phoneMetrics.frameWidth / phoneMetrics.frameHeight).toBeCloseTo(16 / 9, 1);
     expect(phoneMetrics.controls.length).toBe(6);
     const firstTop = phoneMetrics.controls[0].top;
     for (const c of phoneMetrics.controls) {

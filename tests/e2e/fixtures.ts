@@ -172,6 +172,7 @@ export async function seedLibrary(page: Page, data: Partial<LibraryData>): Promi
     { key: STORAGE_KEY, value: JSON.stringify(library) }
   );
   await page.reload();
+  await page.locator("header").waitFor({ state: "visible" });
 }
 
 export async function readLibrary(page: Page): Promise<LibraryData> {
