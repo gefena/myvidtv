@@ -581,7 +581,7 @@ test("mobile landscape viewports (844x390, 667x375, 568x320) keep controls and l
   expect(shortPhone.openLib!.bottom).toBeLessThanOrEqual(shortPhone.innerHeight + 1);
 });
 
-test("mobile listen mode closes sheet on item or episode pick and clears measured bottom inset", async ({ page, isMobile }) => {
+test("mobile listen mode keeps sheet open on pick, reopens on auto-advance, and clears measured bottom inset", async ({ page, isMobile }) => {
   test.skip(!isMobile, "mobile-only listen mode test");
   await mockYouTubeIframeApi(page);
   await mockPodcastFeed(page, podcastFeed());
@@ -674,41 +674,40 @@ test("mobile listen mode closes sheet on item or episode pick and clears measure
     }
   }
 
-  // Pick a podcast episode from browse modal in listen mode -> sheet closes and now-playing stage is shown
+  // Pick a podcast episode from browse modal in listen mode -> sheet stays open (PR #3 behavior)
   await page.getByRole("dialog", { name: "Library" }).getByText("Seeded Podcast", { exact: true }).click();
   await expect(page.getByText("Seeded Podcast Episode")).toBeVisible();
   await page.getByText("Seeded Podcast Episode").click();
-  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
-  await expect(page.getByRole("button", { name: "Watch", exact: true })).toBeVisible();
-  await expect(page.getByTestId("listen-stage")).toBeVisible();
-  await expect(page.getByTestId("listen-stage-title")).toHaveText("Seeded Podcast Episode");
-
-  // Re-open library sheet and pick video 1 in listen mode -> sheet closes, listen stage shows video, YT wrapper stays visibility:visible (opacity:0)
-  await page.getByTestId("phone-open-library").click();
   await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Watch", exact: true })).toBeVisible();
+
+  // Pick video 1 in listen mode -> sheet stays open; YT wrapper stays visibility:visible (opacity:0)
   await page.getByRole("dialog", { name: "Library" }).getByText(longTitle).click();
-  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
-  await expect(page.getByTestId("listen-stage")).toBeVisible();
-  await expect(page.getByTestId("listen-stage-title")).toHaveText(longTitle);
+  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
   const ytWrapper = page.getByTestId("yt-player-wrapper");
   await expect(ytWrapper).toHaveCSS("visibility", "visible");
   await expect(ytWrapper).toHaveCSS("opacity", "0");
   await expect(ytWrapper).toHaveCSS("pointer-events", "none");
 
+  // Manually closing the sheet reveals the listen-mode now-playing stage
+  await page.getByRole("button", { name: "Close library" }).click();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+  await expect(page.getByTestId("listen-stage")).toBeVisible();
+  await expect(page.getByTestId("listen-stage-title")).toHaveText(longTitle);
+
   const watchBtn = page.getByRole("button", { name: "Watch", exact: true });
   await watchBtn.focus();
   await expect(watchBtn).toBeFocused();
 
-  // Auto-advance in listen mode keeps sheet closed and preserves focus on Watch button
+  // Auto-advance in listen mode reopens the sheet WITHOUT stealing focus from Watch
   await page.evaluate(() => {
     (window as unknown as { __ytTriggerEnded?: () => void }).__ytTriggerEnded?.();
   });
-  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
-  await expect(watchBtn).toBeFocused();
-
-  // Re-open library sheet, then switching back to Watch mode closes it so 16:9 video is visible
-  await page.getByTestId("phone-open-library").click();
   await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
+  await expect(watchBtn).toBeFocused();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeFocused();
+
+  // Switching back to Watch mode closes the library sheet so the 16:9 video is visible
   await watchBtn.click();
   await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
   await expect(page.getByRole("button", { name: "Listen", exact: true })).toBeVisible();
@@ -1146,4 +1145,17 @@ test("restoring a podcast episode on load then switching to a video keeps YouTub
   expect(visibleMetrics.width).toBeGreaterThan(200);
   expect(visibleMetrics.height).toBeGreaterThan(100);
   expect(visibleMetrics.playerCount).toBe(1);
+});
+
+test("mobile sheet starts closed on first load even when listen mode was saved", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "mobile-only first-load test");
+  await mockYouTubeIframeApi(page);
+  await seedLibrary(page, {
+    items: [videoItem({ ytId: "vid-1", title: "Saved Listen Mode Video" })],
+    settings: { theme: "dark", libraryCollapsed: false, listenMode: true, sortOrder: "addedAt_desc", loopMode: "off" },
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId("phone-open-library")).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
 });
