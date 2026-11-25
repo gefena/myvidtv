@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLibrary } from "@/contexts/LibraryContext";
-import { getLibraryItemId } from "@/lib/mediaItems";
+import { buildPodcastEpisodeItem, getLibraryItemId, getNextPodcastEpisode } from "@/lib/mediaItems";
+import { fetchPodcastFeed } from "@/lib/podcastRss";
 import type { LibraryItem, VideoItem, PlaylistChannel, PodcastEpisodeItem, LoopMode } from "@/types/library";
 
 declare global {
@@ -560,7 +561,32 @@ export function usePlayer(
   }, []);
 
   const skipNext = useCallback(() => {
-    if (currentItem?.type === "podcast-episode") return;
+    if (currentItem?.type === "podcast-episode") {
+      // Skip on a podcast episode moves to the next episode of the same podcast (feed order, as in
+      // the episode list). Previously this returned early, so Skip did nothing and the same episode
+      // kept playing. Hand the next episode to the parent via onAutoAdvance so it goes through the
+      // normal select path (audio source, resume position, mobile sheet behavior).
+      const episode = currentItem as PodcastEpisodeItem;
+      saveCurrentProgress();
+      void (async () => {
+        try {
+          const feed = await fetchPodcastFeed(episode.podcastFeedUrl);
+          const stillCurrent = currentItemRef.current;
+          if (stillCurrent?.type !== "podcast-episode" || (stillCurrent as PodcastEpisodeItem).episodeId !== episode.episodeId) return;
+          const nextEpisode = getNextPodcastEpisode(feed.episodes, episode.episodeId, loopModeRef.current === "all");
+          if (!nextEpisode) return;
+          const next = buildPodcastEpisodeItem(
+            nextEpisode,
+            { feedUrl: episode.podcastFeedUrl, title: episode.podcastTitle, thumbnail: feed.thumbnail || episode.thumbnail },
+            getWatchHistoryEntry(nextEpisode.episodeId, "podcast")
+          );
+          onAutoAdvance?.(next);
+        } catch {
+          // Feed unavailable: keep playing the current episode.
+        }
+      })();
+      return;
+    }
     if (currentItem?.type !== "video") {
       playerRef.current?.nextVideo();
       return;
@@ -584,7 +610,7 @@ export function usePlayer(
         onAutoAdvance?.(next);
       }
     }
-  }, [currentItem, onAutoAdvance, resetProgressForItem, saveCurrentProgress]);
+  }, [currentItem, getWatchHistoryEntry, onAutoAdvance, resetProgressForItem, saveCurrentProgress]);
 
   const toggleMode = useCallback(() => {
     setMode((m) => (m === "watch" ? "listen" : "watch"));

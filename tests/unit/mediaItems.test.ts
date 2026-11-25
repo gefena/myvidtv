@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHistoryBadge, getHistoryKey, getLibraryItemId, getLibraryItemMediaType, getLibraryItemSubtitle, isLibraryItemActive } from "@/lib/mediaItems";
+import { getHistoryBadge, getHistoryKey, getLibraryItemId, getLibraryItemMediaType, getLibraryItemSubtitle, isLibraryItemActive, buildPodcastEpisodeItem, getNextPodcastEpisode } from "@/lib/mediaItems";
 import type { LibraryItem, WatchHistoryItem } from "@/types/library";
 
 describe("media item helpers", () => {
@@ -75,5 +75,46 @@ describe("media item helpers", () => {
     expect(isLibraryItemActive(video, transientChannelVideo)).toBe(false);
     expect(isLibraryItemActive(channel, video)).toBe(false);
     expect(isLibraryItemActive(otherChannel, transientChannelVideo, [otherChannel])).toBe(false);
+  });
+});
+
+describe("getNextPodcastEpisode", () => {
+  const ep = (id: string) => ({ episodeId: id, title: id, audioUrl: `https://x.test/${id}.mp3`, thumbnail: "", publishedAt: "2026-11-01T00:00:00.000Z" });
+  const eps = [ep("a"), ep("b"), ep("c")];
+
+  it("returns the episode after the current one in feed order", () => {
+    expect(getNextPodcastEpisode(eps, "a")?.episodeId).toBe("b");
+    expect(getNextPodcastEpisode(eps, "b")?.episodeId).toBe("c");
+  });
+
+  it("returns null at the end unless loop-all wraps", () => {
+    expect(getNextPodcastEpisode(eps, "c")).toBeNull();
+    expect(getNextPodcastEpisode(eps, "c", true)?.episodeId).toBe("a");
+    expect(getNextPodcastEpisode([ep("solo")], "solo", true)).toBeNull();
+  });
+
+  it("returns null when the current episode is not in the feed", () => {
+    expect(getNextPodcastEpisode(eps, "missing")).toBeNull();
+    expect(getNextPodcastEpisode([], "a")).toBeNull();
+  });
+});
+
+describe("buildPodcastEpisodeItem", () => {
+  it("builds a playable episode item with podcast metadata and resume position", () => {
+    const item = buildPodcastEpisodeItem(
+      { episodeId: "e1", title: "Ep 1", audioUrl: "https://x.test/e1.mp3", thumbnail: "", publishedAt: "2026-11-01T00:00:00.000Z", duration: "24:35" },
+      { feedUrl: "https://x.test/feed.xml", title: "Show", thumbnail: "https://x.test/art.jpg" },
+      { lastPosition: 42, lastWatchedRatio: 0.3 }
+    );
+    expect(item).toMatchObject({
+      type: "podcast-episode",
+      episodeId: "e1",
+      podcastFeedUrl: "https://x.test/feed.xml",
+      podcastTitle: "Show",
+      thumbnail: "https://x.test/art.jpg",
+      duration: "24:35",
+      lastPosition: 42,
+      watchSource: { type: "podcast", feedUrl: "https://x.test/feed.xml", audioUrl: "https://x.test/e1.mp3" },
+    });
   });
 });
