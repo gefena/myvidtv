@@ -362,3 +362,18 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--violet);
 }
+
+/* Add modal URL row: input beside Fetch; on narrow phones stack the input above a full-width Fetch
+   so the placeholder isn't cut off. */
+.add-url-form {
+  display: flex;
+  gap: 8px;
+}
+@media (max-width: 440px) {
+  .add-url-form {
+    flex-direction: column;
+  }
+  .add-url-form .add-url-fetch {
+    width: 100%;
+  }
+}

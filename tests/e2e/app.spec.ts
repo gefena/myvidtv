@@ -1219,3 +1219,86 @@ test("desktop: Skip on a podcast episode plays the next episode of the same podc
   await expect(page.locator("audio")).toHaveAttribute("src", /skip-2\.mp3/);
   await expect(page.getByText("Skip Test Episode 2").first()).toBeVisible();
 });
+
+test("phone widths 390 and 360: Add modal stacks input above full-width Fetch, header never clips, episode meta stays on one line", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "mobile-only phone layout test");
+  await mockYouTubeIframeApi(page);
+  await mockPodcastFeed(page, podcastFeed({
+    episodes: [{
+      episodeId: "long-ep",
+      title: "A Very Long Podcast Episode Title That Should Wrap To Two Lines In The Episode List",
+      audioUrl: "https://podcast-cdn.example.test/audio.mp3",
+      thumbnail: "https://podcast-cdn.example.test/episode.jpg",
+      publishedAt: "2026-11-21T00:00:00.000Z",
+      duration: "01:02:10",
+    }],
+  }));
+  await seedLibrary(page, { items: [podcastItem(), videoItem()] });
+
+  for (const [width, height] of [[390, 844], [360, 740]]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.getByTestId("phone-open-library")).toBeVisible();
+
+    const header = await page.evaluate(() => {
+      const hd = document.querySelector("header") as HTMLElement;
+      const add = Array.from(hd.querySelectorAll("button")).find((b) => /add/i.test(b.textContent ?? ""));
+      return {
+        vw: document.documentElement.clientWidth,
+        docScroll: document.documentElement.scrollWidth,
+        headerScroll: hd.scrollWidth,
+        headerClient: hd.clientWidth,
+        addRight: add?.getBoundingClientRect().right ?? Infinity,
+      };
+    });
+    expect(header.docScroll).toBeLessThanOrEqual(header.vw);
+    expect(header.headerScroll).toBeLessThanOrEqual(header.headerClient);
+    expect(header.addRight).toBeLessThanOrEqual(header.vw);
+
+    await page.locator("header").getByRole("button", { name: /add/i }).click();
+    const dialog = page.getByRole("dialog", { name: "Add to MyVidTV" });
+    await expect(dialog).toBeVisible();
+    const input = dialog.getByPlaceholder("Paste a YouTube or podcast link...");
+    const fetchBtn = dialog.getByRole("button", { name: "Fetch" });
+    const inputBox = (await input.boundingBox())!;
+    const fetchBox = (await fetchBtn.boundingBox())!;
+    expect(inputBox.width).toBeGreaterThanOrEqual(200);
+    expect(fetchBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 1);
+    expect(Math.abs(fetchBox.width - inputBox.width)).toBeLessThanOrEqual(2);
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeAttached();
+
+    await page.getByTestId("phone-open-library").click();
+    await page.getByRole("dialog", { name: "Library" }).getByText("Seeded Podcast", { exact: true }).click();
+    const episodes = page.getByRole("dialog", { name: "Seeded Podcast" });
+    await expect(episodes.getByText("A Very Long Podcast Episode")).toBeVisible();
+    const meta = await episodes.evaluate((d) => {
+      const lineCount = (el: Element) => {
+        const cs = getComputedStyle(el);
+        const lh = Number.parseFloat(cs.lineHeight) || Number.parseFloat(cs.fontSize) * 1.2;
+        return Math.round(el.getBoundingClientRect().height / lh);
+      };
+      const leaves = Array.from(d.querySelectorAll("*")).filter((x) => x.children.length === 0);
+      const metaEl = leaves.find((x) => x.textContent?.includes("1:02:10"));
+      const badge = leaves.find((x) => x.textContent?.trim() === "PODCAST");
+      return { metaLines: metaEl ? lineCount(metaEl) : -1, badgeLines: badge ? lineCount(badge) : -1, metaText: metaEl?.textContent ?? "" };
+    });
+    expect(meta.metaText).toContain("1:02:10");
+    expect(meta.metaLines).toBe(1);
+    expect(meta.badgeLines).toBe(1);
+    await page.keyboard.press("Escape");
+    await expect(episodes).not.toBeAttached();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+  }
+});
+
+test("desktop Add modal keeps URL input and Fetch on one row", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop-only layout test");
+  await seedLibrary(page, { items: [videoItem()] });
+  await page.locator("header").getByRole("button", { name: /add/i }).click();
+  const dialog = page.getByRole("dialog", { name: "Add to MyVidTV" });
+  const inputBox = (await dialog.getByPlaceholder("Paste a YouTube or podcast link...").boundingBox())!;
+  const fetchBox = (await dialog.getByRole("button", { name: "Fetch" }).boundingBox())!;
+  expect(Math.abs(fetchBox.y - inputBox.y)).toBeLessThanOrEqual(4);
+  expect(fetchBox.x).toBeGreaterThan(inputBox.x + inputBox.width - 1);
+});
