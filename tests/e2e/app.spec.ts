@@ -1159,3 +1159,63 @@ test("mobile sheet starts closed on first load even when listen mode was saved",
   await page.waitForTimeout(500);
   await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
 });
+
+const threeEpisodeFeed = () => podcastFeed({
+  episodeCount: 3,
+  episodes: [1, 2, 3].map((n) => ({
+    episodeId: `skip-ep-${n}`,
+    title: `Skip Test Episode ${n}`,
+    audioUrl: `https://podcast-cdn.example.test/skip-${n}.mp3`,
+    thumbnail: "https://podcast-cdn.example.test/episode.jpg",
+    publishedAt: `2026-11-${String(20 - n).padStart(2, "0")}T00:00:00.000Z`,
+    duration: "24:35",
+  })),
+});
+
+test("mobile listen mode: Skip on a podcast episode advances to the next episode and reopens the sheet", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "mobile-only listen mode skip test");
+  await mockYouTubeIframeApi(page);
+  await mockPodcastFeed(page, threeEpisodeFeed());
+  await seedLibrary(page, {
+    items: [podcastItem(), videoItem()],
+    settings: { theme: "dark", libraryCollapsed: false, listenMode: true, sortOrder: "addedAt_desc", loopMode: "off" },
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId("phone-open-library").click();
+  await page.getByRole("dialog", { name: "Library" }).getByText("Seeded Podcast", { exact: true }).click();
+  await page.getByText("Skip Test Episode 1").click();
+
+  // Listen mode keeps the sheet open after the pick (PR #3 behavior); close it to see the stage
+  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
+  await page.getByRole("button", { name: "Close library" }).click();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+  await expect(page.getByTestId("listen-stage-title")).toHaveText("Skip Test Episode 1");
+
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(page.getByTestId("listen-stage-title")).toHaveText("Skip Test Episode 2");
+  await expect(page.locator("audio")).toHaveAttribute("src", /skip-2\.mp3/);
+  // Changing the playing item in listen mode reopens the sheet, like auto-advance
+  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
+
+  // Skip again -> episode 3; at the last episode Skip does nothing (loop off)
+  await page.getByRole("button", { name: "Close library" }).click();
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(page.getByTestId("listen-stage-title")).toHaveText("Skip Test Episode 3");
+  await page.getByRole("button", { name: "Close library" }).click();
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId("listen-stage-title")).toHaveText("Skip Test Episode 3");
+});
+
+test("desktop: Skip on a podcast episode plays the next episode of the same podcast", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop-only podcast skip test");
+  await mockYouTubeIframeApi(page);
+  await mockPodcastFeed(page, threeEpisodeFeed());
+  await seedLibrary(page, { items: [podcastItem(), videoItem()] });
+  await page.getByText("Seeded Podcast", { exact: true }).first().click();
+  await page.getByText("Skip Test Episode 1").click();
+  await expect(page.locator("audio")).toHaveAttribute("src", /skip-1\.mp3/);
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(page.locator("audio")).toHaveAttribute("src", /skip-2\.mp3/);
+  await expect(page.getByText("Skip Test Episode 2").first()).toBeVisible();
+});

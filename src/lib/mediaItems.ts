@@ -1,4 +1,5 @@
-import type { LibraryItem, WatchHistoryItem } from "@/types/library";
+import type { LibraryItem, PodcastEpisodeItem, WatchHistoryItem } from "@/types/library";
+import type { PodcastEpisode } from "@/lib/podcastRss";
 
 export type MediaType = "youtube" | "podcast";
 
@@ -88,4 +89,43 @@ export function isLibraryItemActive(
   }
 
   return false;
+}
+
+/** Build the transient player item for a podcast episode (used by episode picks and Skip). */
+export function buildPodcastEpisodeItem(
+  episode: PodcastEpisode,
+  podcast: { feedUrl: string; title: string; thumbnail: string },
+  historyEntry?: Pick<WatchHistoryItem, "lastPosition" | "lastWatchedRatio"> | null
+): PodcastEpisodeItem {
+  return {
+    type: "podcast-episode",
+    episodeId: episode.episodeId,
+    podcastFeedUrl: podcast.feedUrl,
+    title: episode.title,
+    podcastTitle: podcast.title,
+    audioUrl: episode.audioUrl,
+    thumbnail: episode.thumbnail || podcast.thumbnail,
+    publishedAt: episode.publishedAt,
+    duration: episode.duration,
+    tags: [],
+    addedAt: 0,
+    lastPosition: historyEntry?.lastPosition,
+    lastWatchedRatio: historyEntry?.lastWatchedRatio,
+    watchSource: { type: "podcast", feedUrl: podcast.feedUrl, audioUrl: episode.audioUrl },
+  };
+}
+
+/**
+ * Next episode for Skip: the episode after the current one in feed order (the order shown in the
+ * episode list). Wraps to the first episode only when loopAll is set; otherwise null at the end.
+ */
+export function getNextPodcastEpisode(
+  episodes: PodcastEpisode[],
+  currentEpisodeId: string,
+  loopAll = false
+): PodcastEpisode | null {
+  const idx = episodes.findIndex((e) => e.episodeId === currentEpisodeId);
+  if (idx < 0 || episodes.length === 0) return null;
+  if (idx + 1 < episodes.length) return episodes[idx + 1];
+  return loopAll && episodes.length > 1 ? episodes[0] : null;
 }

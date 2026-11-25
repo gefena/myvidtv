@@ -14,6 +14,7 @@ import { ImportConfirm } from "./ImportConfirm";
 import { ChannelBrowseModal } from "./ChannelBrowseModal";
 import { PodcastBrowseModal } from "./PodcastBrowseModal";
 import { importLibrary as parseImportFile } from "@/lib/exportImport";
+import { buildPodcastEpisodeItem } from "@/lib/mediaItems";
 import type { LibraryItem, LibraryData, ChannelItem, PodcastItem, PodcastEpisodeItem, VideoItem, WatchHistoryItem } from "@/types/library";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 import type { PodcastEpisode } from "@/lib/podcastRss";
@@ -98,22 +99,7 @@ export function AppShell() {
 
   const handlePodcastEpisodeSelect = useCallback((episode: PodcastEpisode, podcast: PodcastItem) => {
     const historyEntry = getWatchHistoryEntry(episode.episodeId, "podcast");
-    const transient: PodcastEpisodeItem = {
-      type: "podcast-episode",
-      episodeId: episode.episodeId,
-      podcastFeedUrl: podcast.feedUrl,
-      title: episode.title,
-      podcastTitle: podcast.title,
-      audioUrl: episode.audioUrl,
-      thumbnail: episode.thumbnail || podcast.thumbnail,
-      publishedAt: episode.publishedAt,
-      duration: episode.duration,
-      tags: [],
-      addedAt: 0,
-      lastPosition: historyEntry?.lastPosition,
-      lastWatchedRatio: historyEntry?.lastWatchedRatio,
-      watchSource: { type: "podcast", feedUrl: podcast.feedUrl, audioUrl: episode.audioUrl },
-    };
+    const transient: PodcastEpisodeItem = buildPodcastEpisodeItem(episode, podcast, historyEntry);
     setChannelContext(null);
     setEnded(false);
     setCurrentItem(transient);
