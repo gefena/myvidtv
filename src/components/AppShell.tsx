@@ -91,9 +91,10 @@ export function AppShell() {
     setChannelContext({ channelId: channel.channelId, title: channel.title });
     setEnded(false);
     setCurrentItem(transient);
-    if (isMobile) setLibrarySheetOpen(false);
+    // Listen mode keeps the sheet open after a pick (PR #3 behavior); watch mode closes it.
+    if (isMobile) setLibrarySheetOpen(settings.listenMode);
     setBrowseChannelItem(null);
-  }, [getWatchHistoryEntry, isMobile]);
+  }, [getWatchHistoryEntry, isMobile, settings.listenMode]);
 
   const handlePodcastEpisodeSelect = useCallback((episode: PodcastEpisode, podcast: PodcastItem) => {
     const historyEntry = getWatchHistoryEntry(episode.episodeId, "podcast");
@@ -116,9 +117,9 @@ export function AppShell() {
     setChannelContext(null);
     setEnded(false);
     setCurrentItem(transient);
-    if (isMobile) setLibrarySheetOpen(false);
+    if (isMobile) setLibrarySheetOpen(settings.listenMode);
     setBrowsePodcastItem(null);
-  }, [getWatchHistoryEntry, isMobile]);
+  }, [getWatchHistoryEntry, isMobile, settings.listenMode]);
 
   const handleHistorySelect = useCallback((entry: WatchHistoryItem) => {
     if (entry.mediaType === "podcast") {
@@ -142,7 +143,7 @@ export function AppShell() {
       setCurrentItem(transient);
       setChannelContext(null);
       setEnded(false);
-      if (isMobile) setLibrarySheetOpen(false);
+      if (isMobile && !settings.listenMode) setLibrarySheetOpen(false);
       return;
     }
 
@@ -168,8 +169,8 @@ export function AppShell() {
     setCurrentItem(transient);
     setChannelContext(sourceChannel ? { channelId: sourceChannel.channelId, title: sourceChannel.title } : null);
     setEnded(false);
-    if (isMobile) setLibrarySheetOpen(false);
-  }, [archivedItems, isMobile, items]);
+    if (isMobile && !settings.listenMode) setLibrarySheetOpen(false);
+  }, [archivedItems, isMobile, items, settings.listenMode]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,20 +190,35 @@ export function AppShell() {
   }, []);
 
   // Keep the mobile library sheet CLOSED on first load (header and mini-player visible).
-  // Open it automatically only when explicitly toggling into listen mode on phone;
+  // Open it automatically when toggling into listen mode on phone, and reopen it in listen mode when
+  // the playing item changes (auto-advance);
   // close it when exiting listen mode to watch a playing item, or when leaving phone layout.
   // (adjusted during render to avoid cascading renders via react-hooks/set-state-in-effect)
   const isEmpty = items.length === 0 && watchHistory.length === 0 && !showArchive;
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   const [prevListenMode, setPrevListenMode] = useState(settings.listenMode);
+  const [prevCurrentItem, setPrevCurrentItem] = useState(currentItem);
+  const [prevHydrated, setPrevHydrated] = useState(hydrated);
 
   if (
+    hydrated !== prevHydrated ||
     isMobile !== prevIsMobile ||
-    settings.listenMode !== prevListenMode
+    settings.listenMode !== prevListenMode ||
+    currentItem !== prevCurrentItem
   ) {
     setPrevIsMobile(isMobile);
     setPrevListenMode(settings.listenMode);
-    if (hydrated && isMobile && !isEmpty && !prevListenMode && settings.listenMode) {
+    setPrevCurrentItem(currentItem);
+    setPrevHydrated(hydrated);
+    // The render where saved settings load (hydration) is not a user toggle: a saved
+    // listenMode must not pop the sheet open on first load.
+    const justHydrated = hydrated && !prevHydrated;
+    // Reopen in listen mode when the playing item changes from one item to another
+    // (auto-advance / next), as PR #3 did. A null -> item change (first-load restore)
+    // does not open it, so the sheet still starts closed on first load.
+    const listenItemChanged =
+      settings.listenMode && Boolean(prevCurrentItem) && Boolean(currentItem) && currentItem !== prevCurrentItem;
+    if (hydrated && !justHydrated && isMobile && !isEmpty && ((!prevListenMode && settings.listenMode) || listenItemChanged)) {
       setLibrarySheetOpen(true);
     } else if (isMobile && prevListenMode && !settings.listenMode && currentItem) {
       setLibrarySheetOpen(false);
@@ -293,7 +309,7 @@ export function AppShell() {
     setCurrentItem(item);
     setChannelContext(null);
     setEnded(false);
-    if (isMobile) setLibrarySheetOpen(false);
+    if (isMobile && !settings.listenMode) setLibrarySheetOpen(false);
   };
 
 
