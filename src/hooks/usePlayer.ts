@@ -77,6 +77,8 @@ export function usePlayer(
   const [currentItem, setCurrentItem] = useState<LibraryItem | null>(null);
   const [playing, setPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioDuration, setAudioDuration] = useState<number | null>(null);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [youtubeReady, setYoutubeReady] = useState(false);
   const [progress, setProgress] = useState(0); // 0–1
   const [mode, setMode] = useState<PlayerMode>(initialMode);
@@ -84,10 +86,15 @@ export function usePlayer(
   const loopModeRef = useRef<LoopMode>(initialLoopMode);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSaveTimeRef = useRef<number>(0);
+  const lastAudioSecondRef = useRef<number>(0);
   const queueRef = useRef(queue);
 
-  const resetProgressForItem = useCallback(() => {
+  const resetProgressForItem = useCallback((initialTime = 0) => {
+    const floored = Math.floor(Math.max(0, initialTime));
+    lastAudioSecondRef.current = floored;
     setProgress(0);
+    setAudioDuration(null);
+    setAudioCurrentTime(floored);
     lastSaveTimeRef.current = Date.now();
   }, []);
 
@@ -224,6 +231,28 @@ export function usePlayer(
 
     const handlePlay = () => setPlaying(true);
     const handlePause = () => setPlaying(false);
+    const handleDurationUpdate = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setAudioDuration((prev) => (prev === audio.duration ? prev : audio.duration));
+      }
+    };
+    const handleTimeUpdate = () => {
+      const hasValidTime = Number.isFinite(audio.currentTime) && audio.currentTime >= 0;
+      const wholeSeconds = hasValidTime ? Math.floor(audio.currentTime) : lastAudioSecondRef.current;
+      const secondChanged = hasValidTime && wholeSeconds !== lastAudioSecondRef.current;
+
+      if (secondChanged) {
+        lastAudioSecondRef.current = wholeSeconds;
+        setAudioCurrentTime(wholeSeconds);
+      }
+
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setAudioDuration((prev) => (prev === audio.duration ? prev : audio.duration));
+        if (secondChanged) {
+          setProgress(Math.min(1, wholeSeconds / audio.duration));
+        }
+      }
+    };
     const handleAudioError = () => {
       setPlaying(false);
       setAudioError("Could not play podcast audio. Check the episode source and try again.");
@@ -235,11 +264,17 @@ export function usePlayer(
 
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
+    audio.addEventListener("loadedmetadata", handleDurationUpdate);
+    audio.addEventListener("durationchange", handleDurationUpdate);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("error", handleAudioError);
     audio.addEventListener("ended", handleAudioEnded);
     return () => {
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("loadedmetadata", handleDurationUpdate);
+      audio.removeEventListener("durationchange", handleDurationUpdate);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("error", handleAudioError);
       audio.removeEventListener("ended", handleAudioEnded);
     };
@@ -299,9 +334,7 @@ export function usePlayer(
       if (current?.type === "podcast-episode") {
         const audio = audioRef.current;
         if (!audio) return;
-        if (audio.duration > 0) {
-          setProgress(audio.currentTime / audio.duration);
-
+        if (!audio.paused && Number.isFinite(audio.duration) && audio.duration > 0) {
           const now = Date.now();
           if (now - lastSaveTimeRef.current > 10000) {
             saveCurrentProgress();
@@ -375,7 +408,7 @@ export function usePlayer(
       const episode = currentItem as PodcastEpisodeItem;
       const audio = audioRef.current;
       if (!audio) return;
-      if (typeof playerRef.current?.pauseVideo === "function") playerRef.current.pauseVideo();
+      playerRef.current?.pauseVideo();
       audio.src = episode.audioUrl;
       audio.currentTime = episode.lastPosition ?? 0;
       updateWatchProgress({
@@ -420,7 +453,7 @@ export function usePlayer(
             }
           : item;
       if (itemToPlay.type === "podcast-episode") {
-        resetProgressForItem();
+        resetProgressForItem(itemToPlay.lastPosition ?? 0);
         setCurrentItem(itemToPlay);
         return;
       }
@@ -462,7 +495,11 @@ export function usePlayer(
     if (currentItemRef.current?.type === "podcast-episode") {
       const audio = audioRef.current;
       if (!audio || audio.duration <= 0) return;
-      audio.currentTime = ratio * audio.duration;
+      const nextTime = ratio * audio.duration;
+      audio.currentTime = nextTime;
+      const wholeSeconds = Math.floor(Math.max(0, nextTime));
+      lastAudioSecondRef.current = wholeSeconds;
+      setAudioCurrentTime(wholeSeconds);
       setProgress(ratio);
       return;
     }
@@ -480,7 +517,12 @@ export function usePlayer(
     if (currentItemRef.current?.type === "podcast-episode") {
       const audio = audioRef.current;
       if (!audio || audio.duration <= 0) return;
-      audio.currentTime = Math.max(0, audio.currentTime - 10);
+      const nextTime = Math.max(0, audio.currentTime - 10);
+      audio.currentTime = nextTime;
+      const wholeSeconds = Math.floor(nextTime);
+      lastAudioSecondRef.current = wholeSeconds;
+      setAudioCurrentTime(wholeSeconds);
+      setProgress(Math.min(1, nextTime / audio.duration));
       return;
     }
     const p = playerRef.current;
@@ -498,7 +540,12 @@ export function usePlayer(
     if (currentItemRef.current?.type === "podcast-episode") {
       const audio = audioRef.current;
       if (!audio || audio.duration <= 0) return;
-      audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+      const nextTime = Math.min(audio.duration, audio.currentTime + 10);
+      audio.currentTime = nextTime;
+      const wholeSeconds = Math.floor(nextTime);
+      lastAudioSecondRef.current = wholeSeconds;
+      setAudioCurrentTime(wholeSeconds);
+      setProgress(Math.min(1, nextTime / audio.duration));
       return;
     }
     const p = playerRef.current;
@@ -561,6 +608,8 @@ export function usePlayer(
     currentItem,
     playing,
     audioError,
+    audioDuration,
+    audioCurrentTime,
     progress,
     mode,
     loopMode,

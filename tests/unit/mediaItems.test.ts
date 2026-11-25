@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getHistoryBadge, getHistoryKey, getLibraryItemId, getLibraryItemMediaType, getLibraryItemSubtitle } from "@/lib/mediaItems";
+import { getHistoryBadge, getHistoryKey, getLibraryItemId, getLibraryItemMediaType, getLibraryItemSubtitle, isLibraryItemActive } from "@/lib/mediaItems";
 import type { LibraryItem, WatchHistoryItem } from "@/types/library";
 
 describe("media item helpers", () => {
@@ -39,5 +39,41 @@ describe("media item helpers", () => {
     expect(getHistoryKey(podcast)).toBe("podcast:same");
     expect(getHistoryBadge(youtube)).toBe("VID");
     expect(getHistoryBadge(podcast)).toBe("POD");
+  });
+
+  it("matches currently playing items and parent podcasts/channels without double-highlighting", () => {
+    const video: LibraryItem = { type: "video", ytId: "video-1", title: "Video", channelName: "Channel", thumbnail: "", tags: [], addedAt: 1 };
+    const savedChannelVideo: LibraryItem = { type: "video", ytId: "video-2", title: "Saved Chan Video", channelName: "Channel", thumbnail: "", tags: [], addedAt: 2 };
+    const playlist: LibraryItem = { type: "playlist-channel", ytPlaylistId: "pl-1", title: "Playlist", channelName: "", thumbnail: "", videoCount: 3, tags: [], addedAt: 1 };
+    const podcast: LibraryItem = { type: "podcast", feedUrl: "https://example.com/feed.xml", title: "Podcast", author: "Host", thumbnail: "", episodeCount: 3, tags: [], addedAt: 1 };
+    const otherPodcast: LibraryItem = { type: "podcast", feedUrl: "https://example.com/other.xml", title: "Other", author: "", thumbnail: "", episodeCount: 1, tags: [], addedAt: 1 };
+    const episode: LibraryItem = { type: "podcast-episode", episodeId: "episode-1", podcastFeedUrl: "https://example.com/feed.xml", title: "Episode", podcastTitle: "Podcast", audioUrl: "https://example.com/e.mp3", thumbnail: "", publishedAt: "", tags: [], addedAt: 1 };
+    const episodeViaWatchSource: LibraryItem = { type: "podcast-episode", episodeId: "episode-2", podcastFeedUrl: "", title: "Episode 2", podcastTitle: "Podcast", audioUrl: "https://example.com/e2.mp3", thumbnail: "", publishedAt: "", tags: [], addedAt: 0, watchSource: { type: "podcast", feedUrl: "https://example.com/feed.xml", audioUrl: "https://example.com/e2.mp3" } };
+    const channel: LibraryItem = { type: "channel", channelId: "chan-1", title: "Channel", thumbnail: "", tags: [], addedAt: 1 };
+    const otherChannel: LibraryItem = { type: "channel", channelId: "chan-2", title: "Other Channel", thumbnail: "", tags: [], addedAt: 1 };
+    const transientChannelVideo: LibraryItem = { type: "video", ytId: "video-2", title: "Chan Video", channelName: "Channel", thumbnail: "", tags: [], addedAt: 0, watchSource: { type: "channel", channelId: "chan-1" } };
+
+    // Direct ID matches
+    expect(isLibraryItemActive(video, video)).toBe(true);
+    expect(isLibraryItemActive(playlist, playlist)).toBe(true);
+    expect(isLibraryItemActive(episode, episode)).toBe(true);
+
+    // Parent podcast feedUrl matches (direct field and watchSource fallback)
+    expect(isLibraryItemActive(podcast, episode)).toBe(true);
+    expect(isLibraryItemActive(podcast, episodeViaWatchSource)).toBe(true);
+    expect(isLibraryItemActive(otherPodcast, episode)).toBe(false);
+
+    // Parent channel matches only when the playing video is not itself a row in the library
+    expect(isLibraryItemActive(channel, transientChannelVideo)).toBe(true);
+    expect(isLibraryItemActive(channel, transientChannelVideo, [video, channel])).toBe(true);
+    expect(isLibraryItemActive(channel, transientChannelVideo, [savedChannelVideo, channel])).toBe(false);
+    expect(isLibraryItemActive(savedChannelVideo, transientChannelVideo, [savedChannelVideo, channel])).toBe(true);
+
+    // Non-matches
+    expect(isLibraryItemActive(video, null)).toBe(false);
+    expect(isLibraryItemActive(video, episode)).toBe(false);
+    expect(isLibraryItemActive(video, transientChannelVideo)).toBe(false);
+    expect(isLibraryItemActive(channel, video)).toBe(false);
+    expect(isLibraryItemActive(otherChannel, transientChannelVideo, [otherChannel])).toBe(false);
   });
 });

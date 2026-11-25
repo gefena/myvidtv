@@ -108,4 +108,50 @@ describe("podcast feed parser", () => {
     expect(feed.episodes.at(0)?.episodeId).toBe("daily-1999");
     expect(feed.episodes.at(-1)?.episodeId).toBe("daily-1900");
   });
+
+  it("normalizes raw seconds and HH:MM:SS durations and drops invalid values", () => {
+    const xml = `
+      <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+        <channel>
+          <title>Durations Podcast</title>
+          <item>
+            <guid>raw-seconds</guid>
+            <title>Raw Seconds</title>
+            <pubDate>Mon, 04 Jan 2026 10:00:00 GMT</pubDate>
+            <itunes:duration>1475</itunes:duration>
+            <enclosure url="https://cdn.example.com/1.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>hours</guid>
+            <title>Long Episode</title>
+            <pubDate>Mon, 03 Jan 2026 10:00:00 GMT</pubDate>
+            <itunes:duration>01:02:10</itunes:duration>
+            <enclosure url="https://cdn.example.com/2.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>fractional</guid>
+            <title>Fractional Seconds</title>
+            <pubDate>Mon, 02 Jan 2026 10:00:00 GMT</pubDate>
+            <itunes:duration>1475.5</itunes:duration>
+            <enclosure url="https://cdn.example.com/3.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>invalid</guid>
+            <title>Bad Duration</title>
+            <pubDate>Mon, 01 Jan 2026 10:00:00 GMT</pubDate>
+            <itunes:duration>not-a-duration</itunes:duration>
+            <enclosure url="https://cdn.example.com/4.mp3" type="audio/mpeg" />
+          </item>
+        </channel>
+      </rss>
+    `;
+
+    const feed = parsePodcastFeedXml(xml, "https://example.com/feed.xml");
+    expect(feed.episodes.map((ep) => [ep.episodeId, ep.duration])).toEqual([
+      ["raw-seconds", "24:35"],
+      ["hours", "1:02:10"],
+      ["fractional", "24:36"],
+      ["invalid", undefined],
+    ]);
+  });
 });
