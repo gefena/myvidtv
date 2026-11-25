@@ -1,3 +1,4 @@
+import { formatPodcastDuration } from "@/lib/duration";
 import type { PodcastEpisode, PodcastFeed } from "@/lib/podcastRss";
 
 const EPISODE_LIMIT = 100;
@@ -89,7 +90,8 @@ function parseEpisode(entry: string, feedThumbnail: string, feedUrl: string): Po
   const publishedAt =
     decodeXml(textFor(entry, "pubDate") ?? textFor(entry, "published") ?? textFor(entry, "updated")) ??
     "";
-  const duration = decodeXml(textFor(entry, "itunes:duration") ?? textFor(entry, "duration"));
+  const rawDuration = decodeXml(textFor(entry, "itunes:duration") ?? textFor(entry, "duration"));
+  const duration = formatPodcastDuration(rawDuration) ?? undefined;
 
   return {
     episodeId: guid ?? audioUrl,

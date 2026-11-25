@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { useLayout } from "@/hooks/useLayout";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { TagPicker } from "./TagPicker";
 import { extractVideoId, fetchVideoOEmbed, parsePlaylistId, isPlaylistUrl } from "@/lib/oembed";
 import { isChannelUrl, resolveChannelId, fetchChannelFeed, getChannelErrorRequestId } from "@/lib/channelRss";
@@ -36,6 +38,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
   const [channelName, setChannelName] = useState("");
   const overlayRef = useRef<HTMLDivElement>(null);
   const isMobile = useLayout() === "phone";
+  const isMounted = useIsMounted();
 
   const handleUrlSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +224,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
     if (e.target === overlayRef.current) onClose();
   };
 
-  return (
+  const modalContent = (
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
@@ -233,7 +236,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 200,
+        zIndex: 1000,
         padding: "20px",
       }}
     >
@@ -271,6 +274,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
           <button
             onClick={onClose}
             aria-label="Close"
+            title="Close"
             style={{
               background: "none",
               border: "none",
@@ -650,4 +654,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
       </div>
     </div>
   );
+
+  if (!isMounted) return null;
+  return createPortal(modalContent, document.body);
 }

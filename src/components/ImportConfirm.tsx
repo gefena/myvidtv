@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLibrary } from "@/hooks/useLibrary";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import type { LibraryData } from "@/types/library";
 
 type ImportConfirmProps = {
@@ -24,10 +26,11 @@ export function ImportConfirm({
   const { importLibrary } = useLibrary();
   const [storageWarning, setStorageWarning] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const isMounted = useIsMounted();
 
   useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
+    if (isMounted) dialogRef.current?.focus();
+  }, [isMounted]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -51,12 +54,12 @@ export function ImportConfirm({
     onMerge();
   };
 
-  return (
+  const modalContent = (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 200,
+        zIndex: 1000,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -220,4 +223,7 @@ export function ImportConfirm({
       </div>
     </div>
   );
+
+  if (!isMounted) return null;
+  return createPortal(modalContent, document.body);
 }

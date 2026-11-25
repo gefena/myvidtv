@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useLayout } from "@/hooks/useLayout";
+import { useIsMounted } from "@/hooks/useIsMounted";
 import { fetchChannelFeed, getChannelErrorRequestId, ChannelApiError } from "@/lib/channelRss";
 import type { ChannelFeedVideo } from "@/lib/channelRss";
 import type { WatchHistoryItem } from "@/types/library";
@@ -33,10 +35,11 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const isMobile = useLayout() === "phone";
+  const isMounted = useIsMounted();
 
   useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
+    if (isMounted) dialogRef.current?.focus();
+  }, [isMounted]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,7 +77,7 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
     if (e.target === overlayRef.current) onClose();
   };
 
-  return (
+  const modalContent = (
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
@@ -85,7 +88,7 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 200,
+        zIndex: 1000,
         padding: "20px",
       }}
     >
@@ -140,6 +143,7 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
           <button
             onClick={onClose}
             aria-label="Close"
+            title="Close"
             style={{
               background: "none",
               border: "none",
@@ -287,4 +291,7 @@ export function ChannelBrowseModal({ channelId, channelName, watchHistory = [], 
       </div>
     </div>
   );
+
+  if (!isMounted) return null;
+  return createPortal(modalContent, document.body);
 }

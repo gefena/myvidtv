@@ -60,3 +60,32 @@ export function getProgressKey(mediaType: MediaType, id: string): string {
 export function getHistoryBadge(entry: Pick<WatchHistoryItem, "mediaType">): string {
   return getHistoryMediaType(entry) === "podcast" ? "POD" : "VID";
 }
+
+export function isLibraryItemActive(
+  item: LibraryItem,
+  currentItem: LibraryItem | null,
+  libraryItems?: readonly LibraryItem[]
+): boolean {
+  if (!currentItem) return false;
+  const currentId = getLibraryItemId(currentItem);
+  if (getLibraryItemId(item) === currentId) return true;
+
+  if (item.type === "podcast" && currentItem.type === "podcast-episode") {
+    const episodeFeedUrl =
+      currentItem.podcastFeedUrl ||
+      (currentItem.watchSource?.type === "podcast" ? currentItem.watchSource.feedUrl : undefined);
+    return Boolean(episodeFeedUrl && episodeFeedUrl === item.feedUrl);
+  }
+
+  if (item.type === "channel" && currentItem.type === "video") {
+    const matchesChannel =
+      currentItem.watchSource?.type === "channel" && currentItem.watchSource.channelId === item.channelId;
+    if (!matchesChannel) return false;
+    if (libraryItems?.some((entry) => entry.type === "video" && entry.ytId === currentItem.ytId)) {
+      return false;
+    }
+    return true;
+  }
+
+  return false;
+}

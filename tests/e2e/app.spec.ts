@@ -322,8 +322,8 @@ test("mobile layout renders full-width 16:9 player, single-row >=40px controls, 
   const firstTop = playingMetrics.buttons[0].top;
   for (let i = 0; i < playingMetrics.buttons.length; i++) {
     const btn = playingMetrics.buttons[i];
-    expect(btn.width).toBeGreaterThanOrEqual(40);
-    expect(btn.height).toBeGreaterThanOrEqual(40);
+    expect(btn.width).toBeGreaterThanOrEqual(44);
+    expect(btn.height).toBeGreaterThanOrEqual(44);
     expect(Math.abs(btn.top - firstTop)).toBeLessThanOrEqual(2);
     expect(btn.left).toBeGreaterThanOrEqual(0);
     expect(btn.right).toBeLessThanOrEqual(playingMetrics.innerWidth);
@@ -331,6 +331,12 @@ test("mobile layout renders full-width 16:9 player, single-row >=40px controls, 
       expect(btn.left).toBeGreaterThanOrEqual(playingMetrics.buttons[i - 1].right - 1);
     }
   }
+
+  // Theme toggle also meets 44px touch target minimum on phone
+  const themeToggleBox = await page.getByRole("button", { name: /switch to light theme/i }).boundingBox();
+  expect(themeToggleBox).toBeTruthy();
+  expect(themeToggleBox!.width).toBeGreaterThanOrEqual(44);
+  expect(themeToggleBox!.height).toBeGreaterThanOrEqual(44);
 
   // Activate Loop so we can verify active Loop button contrast in both themes
   await page.getByRole("button", { name: "Loop: off" }).click();
@@ -575,7 +581,7 @@ test("mobile landscape viewports (844x390, 667x375, 568x320) keep controls and l
   expect(shortPhone.openLib!.bottom).toBeLessThanOrEqual(shortPhone.innerHeight + 1);
 });
 
-test("mobile listen mode reopens sheet on browse pick and auto-advance, and clears measured bottom inset", async ({ page, isMobile }) => {
+test("mobile listen mode closes sheet on item or episode pick and clears measured bottom inset", async ({ page, isMobile }) => {
   test.skip(!isMobile, "mobile-only listen mode test");
   await mockYouTubeIframeApi(page);
   await mockPodcastFeed(page, podcastFeed());
@@ -668,30 +674,41 @@ test("mobile listen mode reopens sheet on browse pick and auto-advance, and clea
     }
   }
 
-  // Pick a podcast episode from browse modal in listen mode -> sheet stays/reopens (no blank screen)
+  // Pick a podcast episode from browse modal in listen mode -> sheet closes and now-playing stage is shown
   await page.getByRole("dialog", { name: "Library" }).getByText("Seeded Podcast", { exact: true }).click();
   await expect(page.getByText("Seeded Podcast Episode")).toBeVisible();
   await page.getByText("Seeded Podcast Episode").click();
-  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Watch" })).toBeVisible();
-
-  // Select video 1 again, manually close sheet, focus Watch button, then trigger auto-advance -> sheet reopens WITHOUT stealing focus
-  await page.getByRole("dialog", { name: "Library" }).getByText(longTitle).click();
-  await page.getByRole("button", { name: "Close library" }).click();
   await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+  await expect(page.getByRole("button", { name: "Watch", exact: true })).toBeVisible();
+  await expect(page.getByTestId("listen-stage")).toBeVisible();
+  await expect(page.getByTestId("listen-stage-title")).toHaveText("Seeded Podcast Episode");
+
+  // Re-open library sheet and pick video 1 in listen mode -> sheet closes, listen stage shows video, YT wrapper stays visibility:visible (opacity:0)
+  await page.getByTestId("phone-open-library").click();
+  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
+  await page.getByRole("dialog", { name: "Library" }).getByText(longTitle).click();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+  await expect(page.getByTestId("listen-stage")).toBeVisible();
+  await expect(page.getByTestId("listen-stage-title")).toHaveText(longTitle);
+  const ytWrapper = page.getByTestId("yt-player-wrapper");
+  await expect(ytWrapper).toHaveCSS("visibility", "visible");
+  await expect(ytWrapper).toHaveCSS("opacity", "0");
+  await expect(ytWrapper).toHaveCSS("pointer-events", "none");
 
   const watchBtn = page.getByRole("button", { name: "Watch", exact: true });
   await watchBtn.focus();
   await expect(watchBtn).toBeFocused();
 
+  // Auto-advance in listen mode keeps sheet closed and preserves focus on Watch button
   await page.evaluate(() => {
     (window as unknown as { __ytTriggerEnded?: () => void }).__ytTriggerEnded?.();
   });
-  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
   await expect(watchBtn).toBeFocused();
-  await expect(page.getByRole("button", { name: "Close library" })).not.toBeFocused();
 
-  // Switching back to Watch mode closes the library sheet so the 16:9 video is immediately visible
+  // Re-open library sheet, then switching back to Watch mode closes it so 16:9 video is visible
+  await page.getByTestId("phone-open-library").click();
+  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
   await watchBtn.click();
   await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
   await expect(page.getByRole("button", { name: "Listen", exact: true })).toBeVisible();
@@ -740,7 +757,7 @@ test("mobile add flow saves a YouTube video link and a podcast into the library"
   await expect(page.getByText("Seeded Podcast")).toBeVisible();
 });
 
-test("desktop window resizes preserve 601px+ desktop mode, auto-open phone library when idle, handle non-touch 360-430px, and never remount YT.Player", async ({ page, isMobile }) => {
+test("desktop window resizes preserve 601px+ desktop mode, keep phone sheet closed on entry, handle non-touch 360-430px, and never remount YT.Player", async ({ page, isMobile }) => {
   test.skip(isMobile, "desktop-only resize test");
   await mockYouTubeIframeApi(page);
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -770,10 +787,10 @@ test("desktop window resizes preserve 601px+ desktop mode, auto-open phone libra
   expect(desktopGeometry.player!.width).toBeGreaterThan(800);
   expect(desktopGeometry.subWhiteSpace).toBe("normal");
 
-  // Resizing into phone layout when no currentItem is playing auto-opens library sheet without stealing focus
+  // Resizing into phone layout keeps library sheet closed so header and player stay visible
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("button", { name: "Close library" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close library" })).not.toBeFocused();
+  await expect(page.getByTestId("phone-open-library")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(page.getByRole("button", { name: "Collapse library" })).toBeVisible();
 
@@ -904,4 +921,229 @@ test("desktop window resizes preserve 601px+ desktop mode, auto-open phone libra
     () => (window as unknown as { __ytPlayerCreateCount?: number }).__ytPlayerCreateCount ?? 0
   );
   expect(finalPlayerCount).toBe(1);
+});
+
+test("mobile sheet starts closed on first load, closes on pick, and renders Add modal above open sheet", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "mobile-only usability test");
+  await mockYouTubeIframeApi(page);
+  await mockPodcastFeed(
+    page,
+    podcastFeed({
+      episodes: [
+        {
+          episodeId: "ep-raw-seconds",
+          title: "Formatted Duration Episode",
+          audioUrl: "https://podcast-cdn.example.test/raw.mp3",
+          thumbnail: "https://podcast-cdn.example.test/episode.jpg",
+          publishedAt: "2026-07-11T00:00:00.000Z",
+          duration: "1475",
+        },
+      ],
+    })
+  );
+
+  await seedLibrary(page, {
+    items: [videoItem(), podcastItem()],
+  });
+
+  // 1. Wait for hydration on phone, then verify sheet starts CLOSED on first load
+  await expect(page.getByTestId("phone-open-library")).toBeVisible();
+  await expect(page.locator("header")).toBeVisible();
+  await expect(page.getByTestId("player-video-stage")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+
+  // 2. Open library sheet: no duplicate Archive button in sheet header (only the Archive tab)
+  await page.getByTestId("phone-open-library").click();
+  const libraryDialog = page.getByRole("dialog", { name: "Library" });
+  await expect(libraryDialog).toBeVisible();
+  await expect(libraryDialog.getByRole("button", { name: /^archive$/i })).toHaveCount(1);
+
+  // 3. Tapping + Add while sheet is open renders Add modal visibly ABOVE the sheet
+  const sheetAddBtn = libraryDialog.getByRole("button", { name: "+ Add" });
+  await sheetAddBtn.click();
+  const addDialog = page.getByRole("dialog", { name: "Add to MyVidTV" });
+  await expect(addDialog).toBeVisible();
+
+  const hitInsideAdd = await page.evaluate(() => {
+    const addEl = document.querySelector('[role="dialog"][aria-label="Add to MyVidTV"]') as HTMLElement | null;
+    if (!addEl) return false;
+    const rect = addEl.getBoundingClientRect();
+    const topEl = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    return Boolean(topEl && addEl.contains(topEl));
+  });
+  expect(hitInsideAdd).toBe(true);
+
+  // Escape closes ONLY the portaled Add modal and returns focus sensibly to the sheet trigger
+  await page.keyboard.press("Escape");
+  await expect(addDialog).not.toBeAttached();
+  await expect(libraryDialog).toBeVisible();
+  await expect(sheetAddBtn).toBeFocused();
+
+  // 4. Picking a podcast episode formats raw seconds (1475 -> 24:35) and closes the sheet
+  await libraryDialog.getByText("Seeded Podcast", { exact: true }).click();
+  const podcastDialog = page.getByRole("dialog", { name: "Seeded Podcast" });
+  await expect(podcastDialog).toBeVisible();
+  await expect(podcastDialog.getByText(/24:35/)).toBeVisible();
+  await expect(podcastDialog.getByText(/\b1475\b/)).toHaveCount(0);
+
+  await podcastDialog.getByText("Formatted Duration Episode").click();
+  await expect(page.getByRole("button", { name: "Close library" })).not.toBeAttached();
+  await expect(page.getByTestId("player-podcast-duration")).toContainText("24:35");
+  await expect(page.locator("#yt-player")).toBeAttached();
+  await expect(page.locator("#yt-player")).not.toBeVisible();
+  const mobileYtWrapper = page.getByTestId("yt-player-wrapper");
+  await expect(mobileYtWrapper).not.toHaveCSS("display", "none");
+  await expect(mobileYtWrapper).toHaveCSS("visibility", "hidden");
+  await expect(mobileYtWrapper).toHaveCSS("opacity", "0");
+});
+
+test("switching from YouTube to podcast hides iframe, highlights parent podcast, and formats durations with audio metadata fallback", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop-only podcast & highlight verification");
+  await mockYouTubeIframeApi(page);
+  await mockPodcastFeed(
+    page,
+    podcastFeed({
+      episodes: [
+        {
+          episodeId: "ep-raw-1475",
+          title: "Episode With Raw Seconds",
+          audioUrl: "https://podcast-cdn.example.test/ep1.mp3",
+          thumbnail: "https://podcast-cdn.example.test/ep1.jpg",
+          publishedAt: "2026-07-11T00:00:00.000Z",
+          duration: "1475",
+        },
+        {
+          episodeId: "ep-no-duration",
+          title: "Episode Without Feed Duration",
+          audioUrl: "https://podcast-cdn.example.test/ep2.mp3",
+          thumbnail: "https://podcast-cdn.example.test/ep2.jpg",
+          publishedAt: "2026-07-10T00:00:00.000Z",
+        },
+      ],
+    })
+  );
+
+  await seedLibrary(page, {
+    items: [
+      videoItem({ ytId: "yt-1", title: "A Very Long Desktop Video Title That Should Wrap Across Two Full Lines Without Truncating Early" }),
+      podcastItem(),
+    ],
+  });
+
+  // Verify icon-only buttons have title tooltips and theme toggle uses an SVG icon
+  await expect(page.getByRole("button", { name: "Export library" })).toHaveAttribute("title", "Export library");
+  await expect(page.getByRole("button", { name: "Import library" })).toHaveAttribute("title", "Import library");
+  await expect(page.getByRole("button", { name: /switch to light theme/i })).toHaveAttribute("title", /switch to light theme/i);
+  await expect(page.getByRole("button", { name: /switch to light theme/i }).locator("svg")).toBeVisible();
+
+  // Play the YouTube video first
+  const videoCard = page.locator('[data-testid="library-card"]', { hasText: "A Very Long Desktop Video Title" });
+  const podcastCard = page.locator('[data-testid="library-card"]', { hasText: "Seeded Podcast" });
+  await videoCard.click();
+  await expect(videoCard).toHaveAttribute("data-active", "true");
+  await expect(podcastCard).not.toHaveAttribute("data-active", "true");
+  await expect(page.locator("#yt-player")).toBeVisible();
+
+  // Transport buttons expose native tooltips
+  await expect(page.getByRole("button", { name: "Listen", exact: true })).toHaveAttribute("title", "Listen");
+  await expect(page.getByRole("button", { name: "Skip", exact: true })).toHaveAttribute("title", "Skip");
+
+  // Open podcast episodes modal: raw "1475" is formatted as "24:35" and never shown raw
+  await podcastCard.click();
+  const modal = page.getByRole("dialog", { name: "Seeded Podcast" });
+  await expect(modal.getByText(/24:35/)).toBeVisible();
+  await expect(modal.getByText(/\b1475\b/)).toHaveCount(0);
+
+  // Pick episode with raw duration -> YT iframe attached & hidden (not display:none), podcast stage opaque, highlight moves to parent podcast row
+  await modal.getByText("Episode With Raw Seconds").click();
+  await expect(page.locator("#yt-player")).toBeAttached();
+  await expect(page.locator("#yt-player")).not.toBeVisible();
+  const desktopYtWrapper = page.getByTestId("yt-player-wrapper");
+  await expect(desktopYtWrapper).not.toHaveCSS("display", "none");
+  await expect(desktopYtWrapper).toHaveCSS("visibility", "hidden");
+  await expect(desktopYtWrapper).toHaveCSS("opacity", "0");
+  await expect(page.getByTestId("podcast-stage")).toBeVisible();
+  await expect(page.getByTestId("player-podcast-duration")).toContainText("24:35");
+  await expect(podcastCard).toHaveAttribute("data-active", "true");
+  await expect(videoCard).not.toHaveAttribute("data-active", "true");
+
+  // Switch to episode without feed duration -> falls back to <audio> element duration on loadedmetadata
+  await podcastCard.click();
+  await page.getByRole("dialog", { name: "Seeded Podcast" }).getByText("Episode Without Feed Duration").click();
+  await expect(page.getByTestId("player-podcast-duration")).toHaveCount(0);
+
+  try {
+    await page.locator("audio").evaluate((audioEl) => {
+      Object.defineProperty(audioEl, "duration", { configurable: true, get: () => 3730 });
+      audioEl.dispatchEvent(new Event("loadedmetadata"));
+    });
+    await expect(page.getByTestId("player-podcast-duration")).toContainText("1:02:10");
+  } finally {
+    await page.locator("audio").evaluate((audioEl) => {
+      delete (audioEl as unknown as { duration?: number }).duration;
+    });
+  }
+});
+
+test("restoring a podcast episode on load then switching to a video keeps YouTube iframe sized with one YT.Player", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop-only podcast-to-video sizing test");
+  await mockYouTubeIframeApi(page);
+
+  await seedLibrary(page, {
+    items: [videoItem({ ytId: "yt-after-pod", title: "Video Played After Podcast" })],
+    watchHistory: [
+      watchHistoryEntry({
+        mediaType: "podcast",
+        ytId: "restored-pod-ep-1",
+        title: "Restored Podcast Episode",
+        channelName: "Seeded Podcast",
+        thumbnail: "https://podcast-cdn.example.test/artwork.jpg",
+        source: {
+          type: "podcast",
+          feedUrl: "https://example.test/feed.xml",
+          audioUrl: "https://podcast-cdn.example.test/audio.mp3",
+        },
+      }),
+    ],
+  });
+
+  // Restore/play the podcast episode first on load before any video is selected
+  await page.getByRole("button", { name: "history" }).click();
+  await page.getByText("Restored Podcast Episode").click();
+  await expect(page.getByTestId("podcast-stage")).toBeVisible();
+  await expect(page.locator("#yt-player")).toBeAttached();
+  await expect(page.locator("#yt-player")).not.toBeVisible();
+
+  const hiddenBox = await page.locator("#yt-player").evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const wrapper = el.closest('[data-testid="yt-player-wrapper"]');
+    return {
+      width: r.width,
+      height: r.height,
+      display: wrapper ? getComputedStyle(wrapper).display : "",
+      visibility: wrapper ? getComputedStyle(wrapper).visibility : "",
+    };
+  });
+  expect(hiddenBox.display).not.toBe("none");
+  expect(hiddenBox.visibility).toBe("hidden");
+  expect(hiddenBox.width).toBeGreaterThan(0);
+  expect(hiddenBox.height).toBeGreaterThan(0);
+
+  // Now switch to a YouTube video -> iframe is visible at full non-zero size and only one YT.Player exists
+  await page.getByRole("button", { name: "library", exact: true }).click();
+  await page.getByText("Video Played After Podcast").click();
+  await expect(page.locator("#yt-player")).toBeVisible();
+
+  const visibleMetrics = await page.evaluate(() => {
+    const yt = document.getElementById("yt-player");
+    const r = yt?.getBoundingClientRect();
+    return {
+      width: r?.width ?? 0,
+      height: r?.height ?? 0,
+      playerCount: (window as unknown as { __ytPlayerCreateCount?: number }).__ytPlayerCreateCount ?? 0,
+    };
+  });
+  expect(visibleMetrics.width).toBeGreaterThan(200);
+  expect(visibleMetrics.height).toBeGreaterThan(100);
+  expect(visibleMetrics.playerCount).toBe(1);
 });

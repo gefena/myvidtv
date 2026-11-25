@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useLibrary } from "@/hooks/useLibrary";
 import { usePlayer, getItemId } from "@/hooks/usePlayer";
 import { useIsTouch } from "@/hooks/useLayout";
+import { formatElapsedTime, formatPodcastDuration } from "@/lib/duration";
 import type { Layout } from "@/hooks/useLayout";
 import type { LibraryItem, PodcastEpisodeItem } from "@/types/library";
 
@@ -30,6 +31,8 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     currentItem: playerCurrentItem,
     playing,
     audioError,
+    audioDuration,
+    audioCurrentTime,
     progress,
     mode,
     loopMode,
@@ -84,6 +87,14 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
   const displayItem = playerCurrentItem ?? currentItem;
   const hasDisplayItem = Boolean(displayItem);
   const isPodcastEpisode = displayItem?.type === "podcast-episode";
+  const podcastDuration = isPodcastEpisode
+    ? formatPodcastDuration((displayItem as PodcastEpisodeItem).duration) ?? formatPodcastDuration(audioDuration)
+    : null;
+  const podcastTimeDisplay = podcastDuration
+    ? audioCurrentTime > 0
+      ? `${formatElapsedTime(audioCurrentTime)} / ${podcastDuration}`
+      : podcastDuration
+    : null;
 
   // Measure the fixed phone listen bar height so the library sheet and peek bar stay clear
   useEffect(() => {
@@ -146,6 +157,98 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     </>
   );
 
+  const renderTransportControls = (opts: {
+    largeTarget: boolean;
+    compact: boolean;
+    inListenBar: boolean;
+  }) => (
+    <>
+      {canSeekFixedStep && (
+        <ControlBtn
+          onClick={seekBackward}
+          label="Back 10 seconds"
+          largeTarget={opts.largeTarget}
+          isTouch={isTouch}
+          compact={opts.compact}
+        >
+          <span style={{ fontSize: "13px", fontWeight: 600, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+            −10
+          </span>
+        </ControlBtn>
+      )}
+      <ControlBtn
+        onClick={playing ? pause : resume}
+        label={playing ? "Pause" : "Play"}
+        primary
+        largeTarget={opts.largeTarget}
+        isTouch={isTouch}
+        compact={opts.compact}
+      >
+        {playing ? <PauseIcon /> : <PlayIcon />}
+      </ControlBtn>
+      {canSeekFixedStep && (
+        <ControlBtn
+          onClick={seekForward}
+          label="Forward 10 seconds"
+          largeTarget={opts.largeTarget}
+          isTouch={isTouch}
+          compact={opts.compact}
+        >
+          <span style={{ fontSize: "13px", fontWeight: 600, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+            +10
+          </span>
+        </ControlBtn>
+      )}
+      <ControlBtn
+        onClick={skipNext}
+        label="Skip"
+        largeTarget={opts.largeTarget}
+        isTouch={isTouch}
+        compact={opts.compact}
+      >
+        <SkipNextIcon />
+      </ControlBtn>
+      <ControlBtn
+        onClick={toggleLoop}
+        label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
+        active={loopMode !== "off"}
+        largeTarget={opts.largeTarget}
+        isTouch={isTouch}
+        compact={opts.compact}
+      >
+        <LoopIcon mode={loopMode} />
+      </ControlBtn>
+      <ControlBtn
+        onClick={handleToggleMode}
+        label={opts.inListenBar ? "Watch" : isListen ? "Watch" : "Listen"}
+        active={opts.inListenBar ? true : isListen}
+        largeTarget={opts.largeTarget}
+        isTouch={isTouch}
+        compact={opts.compact}
+      >
+        {opts.inListenBar || isListen ? <WatchIcon /> : <ListenIcon />}
+      </ControlBtn>
+    </>
+  );
+
+  const renderPodcastSubtitle = (testId: string, className?: string) => {
+    const episode = displayItem as PodcastEpisodeItem;
+    return (
+      <div
+        className={className}
+        data-testid={testId}
+        style={className ? undefined : { fontSize: "11px", color: "var(--text-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+      >
+        <span>{episode.podcastTitle}</span>
+        {podcastTimeDisplay && (
+          <span data-testid="player-podcast-duration" style={{ fontVariantNumeric: "tabular-nums" }}>
+            {" · "}{podcastTimeDisplay}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       style={{
@@ -169,11 +272,20 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
         style={
           layout === "desktop"
             ? {
-                flex: isListen ? "0 0 0" : "1",
+                flex: isListen && !hasDisplayItem ? "0 0 0" : "1",
                 overflow: "hidden",
                 transition: "flex 0.3s ease",
                 position: "relative",
-                background: "#000",
+                background: isListen && hasDisplayItem ? "var(--bg)" : "#000",
+              }
+            : isListen && hasDisplayItem && layout === "phone"
+            ? {
+                width: "100%",
+                flex: "1",
+                minHeight: 0,
+                overflow: "hidden",
+                position: "relative",
+                background: "var(--bg)",
               }
             : isListen
             ? {
@@ -191,7 +303,20 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               }
         }
       >
-        <div className="player-stage-inner">
+        {/* Keep #yt-player mounted and sized:
+            - Listen mode (YouTube audio-only): opacity:0 + pointer-events:none (never visibility:hidden so mobile browsers don't throttle audio)
+            - Podcast mode: visibility:hidden + opacity:0 + behind opaque podcast-stage (never display:none so the iframe stays sized when switching back to video) */}
+        <div
+          data-testid="yt-player-wrapper"
+          className="player-stage-inner"
+          style={{
+            visibility: isPodcastEpisode ? "hidden" : "visible",
+            opacity: isListen || isPodcastEpisode ? 0 : 1,
+            pointerEvents: isListen || isPodcastEpisode ? "none" : "auto",
+            zIndex: isListen || isPodcastEpisode ? 0 : 1,
+            transition: "opacity 0.2s",
+          }}
+        >
           <div className="player-yt-frame">
             <div
               ref={containerRef}
@@ -199,8 +324,6 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
               style={{
                 width: "100%",
                 height: "100%",
-                opacity: isListen || isPodcastEpisode ? 0 : 1,
-                transition: "opacity 0.3s",
               }}
             />
           </div>
@@ -209,20 +332,112 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
         {isPodcastEpisode && !isListen && (
           <div
+            data-testid="podcast-stage"
             style={{
               position: "absolute",
               inset: 0,
+              zIndex: 2,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              background: "linear-gradient(180deg, rgba(0,0,0,0.86), rgba(0,0,0,0.94))",
+              background: "linear-gradient(180deg, #161022 0%, #0b0712 100%)",
               padding: layout === "phone" ? "12px" : "24px",
               gap: layout === "phone" ? "8px" : "14px",
             }}
           >
             <PodcastArtwork item={displayItem as PodcastEpisodeItem} size={layout === "phone" ? 132 : 260} />
             {audioError && (
+              <div
+                role="alert"
+                style={{
+                  color: "#fca5a5",
+                  fontSize: "13px",
+                  textAlign: "center",
+                  maxWidth: "360px",
+                  lineHeight: 1.4,
+                }}
+              >
+                {audioError}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isListen && displayItem && layout !== "tablet" && (
+          <div
+            data-testid="listen-stage"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 2,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--bg)",
+              padding: layout === "phone" ? "16px 24px" : "24px 32px 84px",
+              gap: layout === "phone" ? "12px" : "16px",
+              textAlign: "center",
+              overflow: "hidden",
+            }}
+          >
+            <ListenArtwork item={displayItem} compact={layout === "phone"} />
+            <div style={{ maxWidth: "420px", width: "100%", minWidth: 0 }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: "var(--violet-soft)",
+                  background: "var(--violet-glow)",
+                  padding: "3px 10px",
+                  borderRadius: "9999px",
+                  marginBottom: "8px",
+                }}
+              >
+                <span aria-hidden="true">♪</span>
+                <span>Audio mode</span>
+              </div>
+              <div
+                data-testid="listen-stage-title"
+                style={{
+                  fontSize: layout === "phone" ? "15px" : "18px",
+                  fontWeight: 600,
+                  color: "var(--text)",
+                  lineHeight: 1.35,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  overflowWrap: "anywhere",
+                  marginBottom: "4px",
+                }}
+              >
+                {displayItem.title}
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "var(--text-dim)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {displayItem.type === "podcast-episode"
+                  ? `${displayItem.podcastTitle}${podcastTimeDisplay ? ` · ${podcastTimeDisplay}` : ""}`
+                  : "channelName" in displayItem
+                  ? displayItem.channelName
+                  : ""}
+              </div>
+            </div>
+            {isPodcastEpisode && audioError && (
               <div
                 role="alert"
                 style={{
@@ -334,7 +549,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
-                    <div className="phone-now-playing-sub" data-testid="now-playing-subtitle">{displayItem.podcastTitle}</div>
+                    renderPodcastSubtitle("now-playing-subtitle", "phone-now-playing-sub")
                   ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
                     <button onClick={onOpenChannel} className="phone-now-playing-sub" data-testid="now-playing-subtitle" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline", textDecorationStyle: "dotted", maxWidth: "100%", display: "block" }}>
                       {displayItem.channelName} ↗
@@ -345,29 +560,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                 </div>
               </div>
               <div className="phone-now-playing-controls">
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget isTouch={isTouch} compact>−10</ControlBtn>
-                )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget isTouch={isTouch} compact>
-                  {playing ? "⏸" : "▶"}
-                </ControlBtn>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget isTouch={isTouch} compact>+10</ControlBtn>
-                )}
-                <ControlBtn onClick={skipNext} label="Skip" largeTarget isTouch={isTouch} compact>⏭</ControlBtn>
-                <ControlBtn
-                  onClick={toggleLoop}
-                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                  active={loopMode !== "off"}
-                  largeTarget
-                  isTouch={isTouch}
-                  compact
-                >
-                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-                </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} largeTarget isTouch={isTouch} compact>
-                  {isListen ? "👁" : "♪"}
-                </ControlBtn>
+                {renderTransportControls({ largeTarget: true, compact: true, inListenBar: false })}
               </div>
             </div>
           ) : (
@@ -386,40 +579,18 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
+                    renderPodcastSubtitle("now-playing-subtitle")
                   ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
-                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                       {displayItem.channelName} ↗
                     </button>
                   ) : (
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" && isTouch ? "4px" : "6px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>−10</ControlBtn>
-                )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>
-                  {playing ? "⏸" : "▶"}
-                </ControlBtn>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>+10</ControlBtn>
-                )}
-                <ControlBtn onClick={skipNext} label="Skip" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>⏭</ControlBtn>
-                <ControlBtn
-                  onClick={toggleLoop}
-                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                  active={loopMode !== "off"}
-                  largeTarget={isTouch}
-                  isTouch={isTouch}
-                  compact={layout === "tablet" && isTouch}
-                >
-                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-                </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label={isListen ? "Watch" : "Listen"} active={isListen} largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>
-                  {isListen ? "👁" : "♪"}
-                </ControlBtn>
+              <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" && isTouch ? "4px" : "8px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
+                {renderTransportControls({ largeTarget: isTouch, compact: layout === "tablet" && isTouch, inListenBar: false })}
               </div>
             </div>
           )}
@@ -489,7 +660,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
-                    <div data-testid="listen-bar-subtitle" style={{ fontSize: "11px", color: "var(--text-dim)" }}>{displayItem.podcastTitle}</div>
+                    renderPodcastSubtitle("listen-bar-subtitle")
                   ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
                     <button data-testid="listen-bar-subtitle" onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                       {displayItem.channelName} ↗
@@ -500,27 +671,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", flexWrap: "nowrap" }}>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget isTouch={isTouch} compact>−10</ControlBtn>
-                )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget isTouch={isTouch} compact>
-                  {playing ? "⏸" : "▶"}
-                </ControlBtn>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget isTouch={isTouch} compact>+10</ControlBtn>
-                )}
-                <ControlBtn onClick={skipNext} label="Skip" largeTarget isTouch={isTouch} compact>⏭</ControlBtn>
-                <ControlBtn
-                  onClick={toggleLoop}
-                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                  active={loopMode !== "off"}
-                  largeTarget
-                  isTouch={isTouch}
-                  compact
-                >
-                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-                </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label="Watch" active largeTarget isTouch={isTouch} compact>👁</ControlBtn>
+                {renderTransportControls({ largeTarget: true, compact: true, inListenBar: true })}
               </div>
             </div>
           ) : (
@@ -539,44 +690,98 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     {displayItem.title}
                   </div>
                   {displayItem.type === "podcast-episode" ? (
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{displayItem.podcastTitle}</div>
+                    renderPodcastSubtitle("listen-bar-subtitle")
                   ) : "channelName" in displayItem && (channelContext && onOpenChannel ? (
-                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-muted)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
+                    <button onClick={onOpenChannel} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: "11px", color: "var(--text-dim)", textDecoration: "underline", textDecorationStyle: "dotted" }}>
                       {displayItem.channelName} ↗
                     </button>
                   ) : (
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: layout === "tablet" && isTouch ? "4px" : "6px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekBackward} label="Back 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>−10</ControlBtn>
-                )}
-                <ControlBtn onClick={playing ? pause : resume} label={playing ? "Pause" : "Play"} largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>
-                  {playing ? "⏸" : "▶"}
-                </ControlBtn>
-                {canSeekFixedStep && (
-                  <ControlBtn onClick={seekForward} label="Forward 10 seconds" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>+10</ControlBtn>
-                )}
-                <ControlBtn onClick={skipNext} label="Skip" largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>⏭</ControlBtn>
-                <ControlBtn
-                  onClick={toggleLoop}
-                  label={loopMode === "off" ? "Loop: off" : loopMode === "one" ? "Loop: one" : "Loop: all"}
-                  active={loopMode !== "off"}
-                  largeTarget={isTouch}
-                  isTouch={isTouch}
-                  compact={layout === "tablet" && isTouch}
-                >
-                  {loopMode === "one" ? "↺1" : loopMode === "all" ? "↺∞" : "↺"}
-                </ControlBtn>
-                <ControlBtn onClick={handleToggleMode} label="Watch" active largeTarget={isTouch} isTouch={isTouch} compact={layout === "tablet" && isTouch}>👁</ControlBtn>
+              <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" && isTouch ? "4px" : "8px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
+                {renderTransportControls({ largeTarget: isTouch, compact: layout === "tablet" && isTouch, inListenBar: true })}
               </div>
             </div>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ transform: "translateX(1px)" }}>
+      <path d="M7.5 5.25a1 1 0 0 1 1.52-.85l10.2 6.75a1 1 0 0 1 0 1.7L9.02 19.6A1 1 0 0 1 7.5 18.75V5.25Z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="6" y="5" width="4.5" height="14" rx="1.2" />
+      <rect x="13.5" y="5" width="4.5" height="14" rx="1.2" />
+    </svg>
+  );
+}
+
+function SkipNextIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M5.5 6.1a1 1 0 0 1 1.54-.84l7.96 5.4a1 1 0 0 1 0 1.66l-7.96 5.4a1 1 0 0 1-1.54-.83V6.1Z" />
+      <rect x="16.5" y="5.5" width="2.5" height="13" rx="1" />
+    </svg>
+  );
+}
+
+function LoopIcon({ mode }: { mode: "off" | "one" | "all" }) {
+  return (
+    <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 2.5 20.5 6 17 9.5" />
+        <path d="M3.5 11.5v-1a4.5 4.5 0 0 1 4.5-4.5h12.5" />
+        <path d="M7 21.5 3.5 18 7 14.5" />
+        <path d="M20.5 12.5v1a4.5 4.5 0 0 1-4.5 4.5H3.5" />
+      </svg>
+      {mode !== "off" && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            fontSize: "8px",
+            fontWeight: 700,
+            lineHeight: 1,
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          {mode === "one" ? "1" : "∞"}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function ListenIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 13a8 8 0 0 1 16 0" />
+      <rect x="3" y="13" width="4" height="7" rx="1.5" />
+      <rect x="17" y="13" width="4" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
+function WatchIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
   );
 }
 
@@ -623,11 +828,47 @@ function PodcastArtwork({ item, size }: { item: PodcastEpisodeItem; size: number
   );
 }
 
+function ListenArtwork({ item, compact }: { item: LibraryItem; compact: boolean }) {
+  const isSquare = item.type === "podcast-episode" || item.type === "podcast";
+  const thumbnail = item.thumbnail;
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: isSquare ? (compact ? "min(168px, 46vw)" : "220px") : (compact ? "min(256px, 76vw)" : "320px"),
+        aspectRatio: isSquare ? "1 / 1" : "16 / 9",
+        maxHeight: compact ? "34dvh" : "38dvh",
+        borderRadius: "10px",
+        overflow: "hidden",
+        background: "var(--surface-2)",
+        border: "1px solid var(--border-hi)",
+        boxShadow: "0 18px 48px rgba(0,0,0,0.35)",
+        flexShrink: 0,
+      }}
+    >
+      {thumbnail ? (
+        isSquare ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumbnail} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          <Image src={thumbnail} alt={item.title} fill sizes={compact ? "256px" : "320px"} style={{ objectFit: "cover" }} />
+        )
+      ) : (
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--violet-soft)", fontSize: "42px" }}>
+          ♪
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ControlBtn({
   children,
   onClick,
   label,
   active,
+  primary,
   dim,
   largeTarget,
   isTouch,
@@ -637,69 +878,55 @@ function ControlBtn({
   onClick: () => void;
   label: string;
   active?: boolean;
+  primary?: boolean;
   dim?: boolean;
   largeTarget?: boolean;
   isTouch?: boolean;
   compact?: boolean;
 }) {
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const primarySize = largeTarget ? "44px" : "36px";
+  const background = primary
+    ? hovered
+      ? "var(--play-btn-hover)"
+      : "var(--play-btn-bg)"
+    : active
+    ? "var(--violet-glow)"
+    : hovered
+    ? "var(--chip)"
+    : "transparent";
 
   return (
-    <div
-      style={{ position: "relative", display: "inline-flex" }}
-      onMouseEnter={isTouch ? undefined : () => setShowTooltip(true)}
-      onMouseLeave={isTouch ? undefined : () => setShowTooltip(false)}
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      style={{
+        background,
+        border: "none",
+        borderRadius: primary ? "9999px" : "6px",
+        color: primary ? "#ffffff" : active ? "var(--violet-soft)" : "var(--text)",
+        cursor: "pointer",
+        fontSize: largeTarget ? "18px" : "15px",
+        opacity: dim ? 0.45 : 1,
+        padding: primary ? 0 : largeTarget ? (compact ? "10px 6px" : "12px 14px") : "6px 8px",
+        transition: "color 0.15s, opacity 0.15s, background-color 0.15s, transform 0.12s",
+        width: primary ? primarySize : undefined,
+        height: primary ? primarySize : undefined,
+        minWidth: primary ? primarySize : largeTarget ? "44px" : "34px",
+        minHeight: primary ? primarySize : largeTarget ? "44px" : "34px",
+        boxShadow: primary ? "0 2px 10px var(--violet-glow)" : undefined,
+        whiteSpace: "nowrap",
+        flexShrink: 0,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onMouseEnter={isTouch ? undefined : () => setHovered(true)}
+      onMouseLeave={isTouch ? undefined : () => setHovered(false)}
     >
-      <button
-        onClick={onClick}
-        aria-label={label}
-        style={{
-          background: active ? "var(--violet-glow)" : "none",
-          border: "none",
-          borderRadius: "4px",
-          color: active ? "var(--violet-soft)" : largeTarget ? "var(--text)" : "var(--text-muted)",
-          cursor: "pointer",
-          fontSize: largeTarget ? "18px" : "14px",
-          opacity: dim ? 0.35 : 1,
-          padding: largeTarget ? (compact ? "10px 6px" : "12px 16px") : "4px 8px",
-          transition: "color 0.15s, opacity 0.15s",
-          minWidth: largeTarget ? "44px" : undefined,
-          minHeight: largeTarget ? "44px" : undefined,
-          whiteSpace: "nowrap",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        onMouseEnter={isTouch ? undefined : (e) => { e.currentTarget.style.color = "var(--text)"; e.currentTarget.style.opacity = "1"; }}
-        onMouseLeave={isTouch ? undefined : (e) => {
-          e.currentTarget.style.color = active ? "var(--violet-soft)" : largeTarget ? "var(--text)" : "var(--text-muted)";
-          e.currentTarget.style.opacity = dim ? "0.35" : "1";
-        }}
-      >
-        {children}
-      </button>
-      {showTooltip && !isTouch && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "calc(100% + 6px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "var(--surface-2)",
-            border: "1px solid var(--border)",
-            borderRadius: "4px",
-            color: "var(--text-muted)",
-            fontSize: "11px",
-            padding: "3px 7px",
-            whiteSpace: "nowrap",
-            pointerEvents: "none",
-            zIndex: 10,
-          }}
-        >
-          {label}
-        </div>
-      )}
-    </div>
+      {children}
+    </button>
   );
 }

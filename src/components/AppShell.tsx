@@ -91,9 +91,9 @@ export function AppShell() {
     setChannelContext({ channelId: channel.channelId, title: channel.title });
     setEnded(false);
     setCurrentItem(transient);
-    if (isMobile) setLibrarySheetOpen(settings.listenMode);
+    if (isMobile) setLibrarySheetOpen(false);
     setBrowseChannelItem(null);
-  }, [getWatchHistoryEntry, isMobile, settings.listenMode]);
+  }, [getWatchHistoryEntry, isMobile]);
 
   const handlePodcastEpisodeSelect = useCallback((episode: PodcastEpisode, podcast: PodcastItem) => {
     const historyEntry = getWatchHistoryEntry(episode.episodeId, "podcast");
@@ -116,9 +116,9 @@ export function AppShell() {
     setChannelContext(null);
     setEnded(false);
     setCurrentItem(transient);
-    if (isMobile) setLibrarySheetOpen(settings.listenMode);
+    if (isMobile) setLibrarySheetOpen(false);
     setBrowsePodcastItem(null);
-  }, [getWatchHistoryEntry, isMobile, settings.listenMode]);
+  }, [getWatchHistoryEntry, isMobile]);
 
   const handleHistorySelect = useCallback((entry: WatchHistoryItem) => {
     if (entry.mediaType === "podcast") {
@@ -142,7 +142,7 @@ export function AppShell() {
       setCurrentItem(transient);
       setChannelContext(null);
       setEnded(false);
-      if (isMobile && !settings.listenMode) setLibrarySheetOpen(false);
+      if (isMobile) setLibrarySheetOpen(false);
       return;
     }
 
@@ -168,8 +168,8 @@ export function AppShell() {
     setCurrentItem(transient);
     setChannelContext(sourceChannel ? { channelId: sourceChannel.channelId, title: sourceChannel.title } : null);
     setEnded(false);
-    if (isMobile && !settings.listenMode) setLibrarySheetOpen(false);
-  }, [archivedItems, isMobile, items, settings.listenMode]);
+    if (isMobile) setLibrarySheetOpen(false);
+  }, [archivedItems, isMobile, items]);
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,25 +188,21 @@ export function AppShell() {
     }
   }, []);
 
-  // Open library sheet automatically on phone when rotating/resizing into phone with no
-  // currentItem, when entering listen mode, or when the playing item changes in listen mode;
-  // close it when exiting listen mode to watch a playing item, and clear stale open state
-  // when leaving phone layout.
+  // Keep the mobile library sheet CLOSED on first load (header and mini-player visible).
+  // Open it automatically only when explicitly toggling into listen mode on phone;
+  // close it when exiting listen mode to watch a playing item, or when leaving phone layout.
   // (adjusted during render to avoid cascading renders via react-hooks/set-state-in-effect)
   const isEmpty = items.length === 0 && watchHistory.length === 0 && !showArchive;
   const [prevIsMobile, setPrevIsMobile] = useState(isMobile);
   const [prevListenMode, setPrevListenMode] = useState(settings.listenMode);
-  const [prevCurrentItem, setPrevCurrentItem] = useState(currentItem);
 
   if (
     isMobile !== prevIsMobile ||
-    settings.listenMode !== prevListenMode ||
-    currentItem !== prevCurrentItem
+    settings.listenMode !== prevListenMode
   ) {
     setPrevIsMobile(isMobile);
     setPrevListenMode(settings.listenMode);
-    setPrevCurrentItem(currentItem);
-    if (hydrated && isMobile && !isEmpty && (!currentItem || settings.listenMode)) {
+    if (hydrated && isMobile && !isEmpty && !prevListenMode && settings.listenMode) {
       setLibrarySheetOpen(true);
     } else if (isMobile && prevListenMode && !settings.listenMode && currentItem) {
       setLibrarySheetOpen(false);
@@ -297,7 +293,7 @@ export function AppShell() {
     setCurrentItem(item);
     setChannelContext(null);
     setEnded(false);
-    if (isMobile && !settings.listenMode) setLibrarySheetOpen(false);
+    if (isMobile) setLibrarySheetOpen(false);
   };
 
 
@@ -341,9 +337,13 @@ export function AppShell() {
         >
           {/* PlayerArea wrapper — never moves in the tree, keeps YouTube iframe alive */}
           <div
-            style={layout === "desktop"
-              ? { flex: 1, minWidth: 0, overflow: "hidden" }
-              : { overflow: "hidden" }}
+            style={
+              layout === "desktop"
+                ? { flex: 1, minWidth: 0, overflow: "hidden" }
+                : layout === "phone" && settings.listenMode && currentItem
+                ? { flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }
+                : { overflow: "hidden" }
+            }
             className={
               layout === "tablet"
                 ? "tablet-player"
@@ -375,8 +375,10 @@ export function AppShell() {
           {/* ── Phone: spacer + bottom bar + library sheet ── */}
           {layout === "phone" && (
             <>
-              {/* Spacer / empty area when nothing is playing */}
-              <div className="phone-spacer" style={{ flex: 1 }} />
+              {/* Spacer / empty area when nothing is playing (listen-stage fills this area in listen mode) */}
+              {!(settings.listenMode && currentItem) && (
+                <div className="phone-spacer" style={{ flex: 1 }} />
+              )}
 
               {/* Library peek bar — splits into two when channel context is active */}
               <div
@@ -492,6 +494,7 @@ export function AppShell() {
                       className="phone-peek-bar-btn-icon"
                       onClick={openLibrarySheet}
                       aria-label="Open library"
+                      title="Open library"
                       style={{
                         background: "none",
                         border: "none",
@@ -536,6 +539,22 @@ export function AppShell() {
 
               {/* Library sheet */}
               <AnimatePresence>
+                {librarySheetOpen && phoneSheetModal && (
+                  <motion.div
+                    key="library-sheet-backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    onClick={() => setLibrarySheetOpen(false)}
+                    style={{
+                      position: "fixed",
+                      inset: 0,
+                      zIndex: 99,
+                      background: "rgba(0,0,0,0.5)",
+                    }}
+                  />
+                )}
                 {librarySheetOpen && (
                   <motion.div
                     ref={sheetRef}
@@ -551,12 +570,18 @@ export function AppShell() {
                     transition={{ type: "spring", damping: 30, stiffness: 300 }}
                     style={{
                       position: phoneSheetModal ? "fixed" : "absolute",
-                      inset: 0,
+                      top: phoneSheetModal ? "max(52px, env(safe-area-inset-top, 0px))" : 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
                       zIndex: 100,
                       background: "var(--surface)",
+                      borderTop: "1px solid var(--border-hi)",
+                      borderTopLeftRadius: "16px",
+                      borderTopRightRadius: "16px",
+                      overflow: "hidden",
                       display: "flex",
                       flexDirection: "column",
-                      paddingTop: phoneSheetModal ? "env(safe-area-inset-top, 0px)" : 0,
                     }}
                   >
                     {/* Sheet handle + header */}
@@ -601,13 +626,14 @@ export function AppShell() {
                             <button
                               onClick={exportLibrary}
                               aria-label="Export library"
+                              title="Export library"
                               style={{
                                 background: "none",
                                 border: "1px solid var(--border)",
                                 borderRadius: "4px",
                                 color: "var(--text-dim)",
                                 cursor: "pointer",
-                                fontSize: "13px",
+                                fontSize: "14px",
                                 padding: "3px 8px",
                                 minWidth: "40px",
                                 minHeight: "40px",
@@ -623,13 +649,14 @@ export function AppShell() {
                             <button
                               onClick={() => { captureModalTrigger(); handleImportClick(); }}
                               aria-label="Import library"
+                              title="Import library"
                               style={{
                                 background: "none",
                                 border: "1px solid var(--border)",
                                 borderRadius: "4px",
                                 color: "var(--text-dim)",
                                 cursor: "pointer",
-                                fontSize: "13px",
+                                fontSize: "14px",
                                 padding: "3px 8px",
                                 minWidth: "40px",
                                 minHeight: "40px",
@@ -642,32 +669,10 @@ export function AppShell() {
                             </button>
                           )}
                           <button
-                            onClick={() => {
-                              const next = libraryView === "archive" ? "library" : "archive";
-                              setLibraryView(next);
-                              if (next === "library") setShowArchive(false);
-                            }}
-                            style={{
-                              background: libraryView === "archive" ? "var(--violet-glow)" : "none",
-                              border: "1px solid var(--border)",
-                              borderRadius: "4px",
-                              color: libraryView === "archive" ? "var(--violet-soft)" : "var(--text-dim)",
-                              cursor: "pointer",
-                              fontSize: "11px",
-                              padding: "6px 8px",
-                              minHeight: "40px",
-                              whiteSpace: "nowrap",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {libraryView === "archive" ? "← Library" : "Archive"}
-                          </button>
-                          <button
                             ref={sheetCloseBtnRef}
                             onClick={() => setLibrarySheetOpen(false)}
                             aria-label="Close library"
+                            title="Close library"
                             style={{
                               background: "none",
                               border: "none",
@@ -697,11 +702,14 @@ export function AppShell() {
                         currentItem={currentItem}
                         onCollapse={() => {}}
                         view={libraryView}
-                        onViewChange={setLibraryView}
+                        onViewChange={(next) => {
+                          setLibraryView(next);
+                          if (next === "library") setShowArchive(false);
+                        }}
                         layout="phone"
                         bottomInset={settings.listenMode && Boolean(currentItem) ? "calc(var(--phone-listen-bar-height, 0px) + 8px)" : 0}
-                        onBrowseChannel={(item) => { captureModalTrigger(); setBrowseChannelItem(item); if (!settings.listenMode) setLibrarySheetOpen(false); }}
-                        onBrowsePodcast={(item) => { captureModalTrigger(); setBrowsePodcastItem(item); if (!settings.listenMode) setLibrarySheetOpen(false); }}
+                        onBrowseChannel={(item) => { captureModalTrigger(); setBrowseChannelItem(item); }}
+                        onBrowsePodcast={(item) => { captureModalTrigger(); setBrowsePodcastItem(item); }}
                         onSelectHistory={handleHistorySelect}
                       />
                     </div>
@@ -774,6 +782,7 @@ export function AppShell() {
                 <button
                   onClick={handleCollapseToggle}
                   aria-label="Expand library"
+                  title="Expand library"
                   style={{
                     width: "20px",
                     background: "var(--surface)",

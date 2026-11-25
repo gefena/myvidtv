@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useLayout } from "@/hooks/useLayout";
+import { useIsMounted } from "@/hooks/useIsMounted";
+import { formatPodcastDuration } from "@/lib/duration";
 import { fetchPodcastFeed } from "@/lib/podcastRss";
 import type { PodcastEpisode } from "@/lib/podcastRss";
 import type { PodcastItem, WatchHistoryItem } from "@/types/library";
@@ -20,10 +23,11 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const isMobile = useLayout() === "phone";
+  const isMounted = useIsMounted();
 
   useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
+    if (isMounted) dialogRef.current?.focus();
+  }, [isMounted]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,7 +56,7 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
     if (e.target === overlayRef.current) onClose();
   };
 
-  return (
+  const modalContent = (
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
@@ -63,7 +67,7 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 200,
+        zIndex: 1000,
         padding: "20px",
       }}
     >
@@ -117,6 +121,7 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
           <button
             onClick={onClose}
             aria-label="Close"
+            title="Close"
             style={{
               background: "none",
               border: "none",
@@ -176,6 +181,7 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
               {episodes.map((episode) => {
                 const history = watchHistory.find((entry) => entry.mediaType === "podcast" && entry.ytId === episode.episodeId);
                 const ratio = history?.lastWatchedRatio ?? 0;
+                const formattedDuration = formatPodcastDuration(episode.duration);
                 return (
                   <button
                     key={episode.episodeId}
@@ -218,8 +224,8 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
                         }}>
                           {episode.title}
                         </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                          {[formatDate(episode.publishedAt), episode.duration].filter(Boolean).join(" · ")}
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                          {[formatDate(episode.publishedAt), formattedDuration].filter(Boolean).join(" · ")}
                         </div>
                       </div>
                     </div>
@@ -244,6 +250,9 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
       </div>
     </div>
   );
+
+  if (!isMounted) return null;
+  return createPortal(modalContent, document.body);
 }
 
 function formatDate(value: string): string {

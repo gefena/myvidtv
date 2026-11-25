@@ -25,6 +25,12 @@
 
   --bg-grad: radial-gradient(ellipse 90% 60% at 50% 0%, #1a0d2e 0%, #0c0814 60%);
   --logo-glow: rgba(168, 118, 255, 0.2);
+
+  --row-active-bg: rgba(168, 118, 255, 0.22);
+  --row-active-border: rgba(196, 163, 255, 0.72);
+  --row-active-shadow: 0 0 0 1px rgba(168, 118, 255, 0.28), 0 4px 16px rgba(168, 118, 255, 0.2);
+  --play-btn-bg: #7c3aed;
+  --play-btn-hover: #8b5cf6;
 }
 
 /* ── Light theme ──────────────────────────────────────────── */
@@ -51,6 +57,12 @@
 
   --bg-grad: radial-gradient(ellipse 90% 60% at 50% 0%, #e8e4f8 0%, #eeeef8 100%);
   --logo-glow: transparent;
+
+  --row-active-bg: rgba(124, 58, 237, 0.14);
+  --row-active-border: rgba(124, 58, 237, 0.65);
+  --row-active-shadow: 0 2px 10px rgba(124, 58, 237, 0.16);
+  --play-btn-bg: #7c3aed;
+  --play-btn-hover: #6d28d9;
 }
 
 /* ── Base ─────────────────────────────────────────────────── */
@@ -83,30 +95,34 @@ body {
 }
 
 .theme-toggle-btn {
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  color: var(--text);
+  border: 1px solid var(--border-hi);
+  min-width: 34px;
+  min-height: 34px;
 }
 
 .theme-toggle-btn:hover {
-  color: var(--text);
-  border-color: var(--violet-soft);
+  color: var(--violet-soft);
+  border-color: var(--violet);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (pointer: coarse) {
   .phone-header-btn {
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 44px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
 
   .theme-toggle-btn {
-    color: var(--text-dim);
+    min-width: 44px;
+    min-height: 44px;
+    color: var(--text);
   }
 
   .theme-toggle-btn:hover {
-    color: var(--text);
+    color: var(--violet-soft);
   }
 }
 
