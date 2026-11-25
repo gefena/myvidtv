@@ -300,7 +300,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
 
           {/* ── URL input ── */}
           {step.name === "input" && (
-            <form onSubmit={handleUrlSubmit} style={{ display: "flex", gap: "8px" }}>
+            <form onSubmit={handleUrlSubmit} className="add-url-form">
               <input
                 type="url"
                 value={url}
@@ -323,6 +323,7 @@ export function AddFlow({ onClose, initialUrl = "" }: AddFlowProps) {
               />
               <button
                 type="submit"
+                className="add-url-fetch"
                 style={{
                   background: "var(--violet)",
                   border: "none",

@@ -114,6 +114,8 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
               padding: "2px 6px",
               borderRadius: "4px",
               letterSpacing: "0.04em",
+              whiteSpace: "nowrap",
+              display: "inline-block",
             }}>
               PODCAST
             </span>
@@ -224,7 +226,7 @@ export function PodcastBrowseModal({ podcast, watchHistory = [], onPlay, onClose
                         }}>
                           {episode.title}
                         </div>
-                        <div style={{ fontSize: "11px", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                           {[formatDate(episode.publishedAt), formattedDuration].filter(Boolean).join(" · ")}
                         </div>
                       </div>
