@@ -6,6 +6,7 @@ import { useLibrary } from "@/hooks/useLibrary";
 import { usePlayer, getItemId } from "@/hooks/usePlayer";
 import { useIsTouch } from "@/hooks/useLayout";
 import { formatElapsedTime, formatPodcastDuration } from "@/lib/duration";
+import { ShareButton } from "@/components/ShareButton";
 import type { Layout } from "@/hooks/useLayout";
 import type { LibraryItem, PodcastEpisodeItem } from "@/types/library";
 
@@ -48,6 +49,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
     toggleLoop,
     setLoopMode,
     initPlayer,
+    getCurrentPositionSeconds,
   } = usePlayer(items, onItemEnd, settings.listenMode ? "listen" : "watch", settings.loopMode, onEnded);
 
   // Sync external currentItem into player — guard against re-firing during auto-advance
@@ -85,6 +87,11 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
 
   const isListen = mode === "listen";
   const displayItem = playerCurrentItem ?? currentItem;
+  const getSharePositionSeconds = () => {
+    if (!displayItem || !playerCurrentItem) return undefined;
+    if (getItemId(displayItem) !== getItemId(playerCurrentItem)) return undefined;
+    return getCurrentPositionSeconds();
+  };
   const hasDisplayItem = Boolean(displayItem);
   const isPodcastEpisode = displayItem?.type === "podcast-episode";
   const podcastDuration = isPodcastEpisode
@@ -558,6 +565,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     <div className="phone-now-playing-sub" data-testid="now-playing-subtitle">{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
+                <ShareButton item={displayItem} getPositionSeconds={getSharePositionSeconds} largeTarget />
               </div>
               <div className="phone-now-playing-controls">
                 {renderTransportControls({ largeTarget: true, compact: true, inListenBar: false })}
@@ -588,6 +596,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
+                <ShareButton item={displayItem} getPositionSeconds={getSharePositionSeconds} largeTarget={isTouch} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" && isTouch ? "4px" : "8px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
                 {renderTransportControls({ largeTarget: isTouch, compact: layout === "tablet" && isTouch, inListenBar: false })}
@@ -669,6 +678,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     <div data-testid="listen-bar-subtitle" style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
+                <ShareButton item={displayItem} getPositionSeconds={getSharePositionSeconds} largeTarget />
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", flexWrap: "nowrap" }}>
                 {renderTransportControls({ largeTarget: true, compact: true, inListenBar: true })}
@@ -699,6 +709,7 @@ export function PlayerArea({ currentItem, onItemEnd, onPlaceholderClick, onEnded
                     <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>{"channelName" in displayItem ? displayItem.channelName : ""}</div>
                   ))}
                 </div>
+                <ShareButton item={displayItem} getPositionSeconds={getSharePositionSeconds} largeTarget={isTouch} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: layout === "tablet" && isTouch ? "4px" : "8px", flexShrink: 0, ...(layout === "tablet" && { marginLeft: "auto" }) }}>
                 {renderTransportControls({ largeTarget: isTouch, compact: layout === "tablet" && isTouch, inListenBar: true })}

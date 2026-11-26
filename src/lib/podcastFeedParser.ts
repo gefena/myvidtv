@@ -92,11 +92,13 @@ function parseEpisode(entry: string, feedThumbnail: string, feedUrl: string): Po
     "";
   const rawDuration = decodeXml(textFor(entry, "itunes:duration") ?? textFor(entry, "duration"));
   const duration = formatPodcastDuration(rawDuration) ?? undefined;
+  const episodeLink = findEpisodeLink(entry, feedUrl, audioUrl);
 
   return {
     episodeId: guid ?? audioUrl,
     title,
     audioUrl,
+    ...(episodeLink ? { episodeLink } : {}),
     thumbnail,
     publishedAt,
     duration,
@@ -136,6 +138,42 @@ function findAudioLink(xml: string): string | null {
     if (href && (type.startsWith("audio/") || looksLikeAudioUrl(href))) return href;
   }
   return null;
+}
+
+function findEpisodeLink(xml: string, feedUrl: string, audioUrl: string): string | undefined {
+  const rssLinkPattern = /<link\b(?:\s[^>]*)?>\s*(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]+))\s*<\/link>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = rssLinkPattern.exec(xml)) !== null) {
+    const raw = match[1] ?? match[2];
+    const resolved = resolveEpisodePageLink(raw, feedUrl, audioUrl);
+    if (resolved) return resolved;
+  }
+
+  const atomLinkPattern = /<link\b[^>]*>/gi;
+  let fallbackHref: string | undefined;
+  while ((match = atomLinkPattern.exec(xml)) !== null) {
+    const tag = match[0];
+    const href = attrFromTag(tag, "href");
+    if (!href) continue;
+    const rel = (attrFromTag(tag, "rel") ?? "").trim().toLowerCase();
+    const type = (attrFromTag(tag, "type") ?? "").trim().toLowerCase();
+    if ((rel && rel !== "alternate") || type.startsWith("audio/")) continue;
+    const resolved = resolveEpisodePageLink(href, feedUrl, audioUrl);
+    if (!resolved) continue;
+    if (rel === "alternate") return resolved;
+    if (!fallbackHref) fallbackHref = resolved;
+  }
+
+  return fallbackHref;
+}
+
+function resolveEpisodePageLink(raw: string | undefined, feedUrl: string, audioUrl: string): string | undefined {
+  const decoded = decodeXml(raw);
+  if (!decoded) return undefined;
+  const resolved = resolveHttpUrl(decoded, feedUrl);
+  if (!resolved) return undefined;
+  if (resolved === audioUrl || looksLikeAudioUrl(resolved)) return undefined;
+  return resolved;
 }
 
 function attrFromTag(tag: string, attrName: string): string | null {

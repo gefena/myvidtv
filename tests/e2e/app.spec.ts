@@ -1302,3 +1302,50 @@ test("desktop Add modal keeps URL input and Fetch on one row", async ({ page, is
   expect(Math.abs(fetchBox.y - inputBox.y)).toBeLessThanOrEqual(4);
   expect(fetchBox.x).toBeGreaterThan(inputBox.x + inputBox.width - 1);
 });
+
+test("desktop: Share is hidden when idle and copies YouTube URL for a playing video", async ({ page, isMobile }) => {
+  test.skip(isMobile, "desktop-only share test");
+  const video = videoItem();
+  await mockYouTubeIframeApi(page);
+  await seedLibrary(page, { items: [video] });
+
+  await expect(page.getByTestId("share-button")).toHaveCount(0);
+
+  await page.evaluate(() => {
+    const win = window as unknown as { __copiedShareText?: string };
+    win.__copiedShareText = undefined;
+    try {
+      delete (navigator as unknown as Record<string, unknown>).share;
+    } catch {
+      // Ignore non-configurable property error
+    }
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          win.__copiedShareText = text;
+        },
+      },
+    });
+  });
+
+  await page.getByText(video.title, { exact: true }).first().click();
+
+  const shareBtn = page.getByTestId("share-button");
+  await expect(shareBtn).toBeVisible();
+  await shareBtn.click();
+
+  const shareMenu = page.getByTestId("share-menu");
+  await expect(shareMenu).toBeVisible();
+  await shareMenu.getByRole("button", { name: "Copy link" }).click();
+
+  const copied = await page.evaluate(
+    () => (window as unknown as { __copiedShareText?: string }).__copiedShareText
+  );
+  expect(copied).toMatch(new RegExp(`^https://www\\.youtube\\.com/watch\\?v=${video.ytId}(&t=\\d+s)?$`));
+  await expect(page.getByRole("status")).toHaveText("Copied link");
+});

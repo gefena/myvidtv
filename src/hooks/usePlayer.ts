@@ -124,7 +124,12 @@ export function usePlayer(
         thumbnail: episode.thumbnail,
         position: 1,
         duration: 1,
-        source: episode.watchSource ?? { type: "podcast", feedUrl: episode.podcastFeedUrl, audioUrl: episode.audioUrl },
+        source: episode.watchSource ?? {
+          type: "podcast",
+          feedUrl: episode.podcastFeedUrl,
+          audioUrl: episode.audioUrl,
+          ...(episode.episodeLink ? { episodeLink: episode.episodeLink } : {}),
+        },
       });
       setPlaying(false);
       return;
@@ -297,7 +302,12 @@ export function usePlayer(
         thumbnail: episode.thumbnail,
         position: audio.currentTime,
         duration: audio.duration,
-        source: episode.watchSource ?? { type: "podcast", feedUrl: episode.podcastFeedUrl, audioUrl: episode.audioUrl },
+        source: episode.watchSource ?? {
+          type: "podcast",
+          feedUrl: episode.podcastFeedUrl,
+          audioUrl: episode.audioUrl,
+          ...(episode.episodeLink ? { episodeLink: episode.episodeLink } : {}),
+        },
       });
       lastSaveTimeRef.current = Date.now();
       return;
@@ -422,7 +432,12 @@ export function usePlayer(
         duration: 0,
         lastWatchedRatio: episode.lastWatchedRatio,
         preferInputProgress: true,
-        source: episode.watchSource ?? { type: "podcast", feedUrl: episode.podcastFeedUrl, audioUrl: episode.audioUrl },
+        source: episode.watchSource ?? {
+          type: "podcast",
+          feedUrl: episode.podcastFeedUrl,
+          audioUrl: episode.audioUrl,
+          ...(episode.episodeLink ? { episodeLink: episode.episodeLink } : {}),
+        },
       });
       void audio.play().catch(() => setPlaying(false));
     }
@@ -626,6 +641,33 @@ export function usePlayer(
     setLoopMode(next);
   }, [setLoopMode]);
 
+  const getCurrentPositionSeconds = useCallback((): number | undefined => {
+    const current = currentItemRef.current;
+    if (!current) return undefined;
+    if (current.type === "podcast-episode") {
+      const audio = audioRef.current;
+      if (audio && Number.isFinite(audio.currentTime) && audio.currentTime >= 0) {
+        return audio.currentTime;
+      }
+      return lastAudioSecondRef.current;
+    }
+    if (current.type === "video") {
+      const p = playerRef.current;
+      if (p) {
+        try {
+          const cur = p.getCurrentTime();
+          if (Number.isFinite(cur) && cur >= 0) return cur;
+        } catch {
+          // Player not ready
+        }
+      }
+      return typeof current.lastPosition === "number" && Number.isFinite(current.lastPosition) && current.lastPosition >= 0
+        ? current.lastPosition
+        : undefined;
+    }
+    return undefined;
+  }, []);
+
   const canSeekFixedStep = currentItem?.type === "video" || currentItem?.type === "podcast-episode";
 
   return {
@@ -651,5 +693,6 @@ export function usePlayer(
     toggleLoop,
     setLoopMode,
     initPlayer,
+    getCurrentPositionSeconds,
   };
 }
