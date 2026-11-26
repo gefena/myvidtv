@@ -10,6 +10,7 @@ export type PodcastEpisode = {
   episodeId: string;
   title: string;
   audioUrl: string;
+  episodeLink?: string;
   thumbnail: string;
   publishedAt: string;
   duration?: string;

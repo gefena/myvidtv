@@ -154,4 +154,104 @@ describe("podcast feed parser", () => {
       ["invalid", undefined],
     ]);
   });
+
+  it("extracts episodeLink for RSS, Atom, and relative URLs, and drops audio-only or missing links", () => {
+    const rssXml = `
+      <rss version="2.0">
+        <channel>
+          <title>Link Podcast</title>
+          <item>
+            <guid>rss-abs</guid>
+            <title>RSS Absolute</title>
+            <pubDate>Fri, 05 Jan 2026 10:00:00 GMT</pubDate>
+            <link>https://example.com/episodes/rss-abs?ref=feed&amp;utm=1</link>
+            <enclosure url="https://cdn.example.com/rss-abs.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>rss-rel</guid>
+            <title>RSS Relative</title>
+            <pubDate>Thu, 04 Jan 2026 10:00:00 GMT</pubDate>
+            <link>/episodes/rss-rel</link>
+            <enclosure url="https://cdn.example.com/rss-rel.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>rss-audio-only</guid>
+            <title>RSS Audio Link</title>
+            <pubDate>Wed, 03 Jan 2026 10:00:00 GMT</pubDate>
+            <link>https://cdn.example.com/direct.m4a?download=1</link>
+            <enclosure url="https://cdn.example.com/rss-audio.mp3" type="audio/mpeg" />
+          </item>
+          <item>
+            <guid>rss-missing</guid>
+            <title>RSS Missing Link</title>
+            <pubDate>Tue, 02 Jan 2026 10:00:00 GMT</pubDate>
+            <enclosure url="https://cdn.example.com/rss-missing.mp3" type="audio/mpeg" />
+          </item>
+        </channel>
+      </rss>
+    `;
+
+    const rssFeed = parsePodcastFeedXml(rssXml, "https://example.com/podcast/feed.xml");
+    expect(rssFeed.episodes.map((ep) => [ep.episodeId, ep.episodeLink])).toEqual([
+      ["rss-abs", "https://example.com/episodes/rss-abs?ref=feed&utm=1"],
+      ["rss-rel", "https://example.com/episodes/rss-rel"],
+      ["rss-audio-only", undefined],
+      ["rss-missing", undefined],
+    ]);
+
+    const atomXml = `
+      <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>Atom Podcast</title>
+        <entry>
+          <id>atom-alt</id>
+          <title>Atom Alternate</title>
+          <updated>2026-01-05T10:00:00Z</updated>
+          <link rel="enclosure" type="audio/mpeg" href="https://cdn.example.com/atom-alt.mp3" />
+          <link rel="alternate" type="text/html" href="/shows/atom-alt" />
+        </entry>
+        <entry>
+          <id>atom-plain</id>
+          <title>Atom Plain Link</title>
+          <updated>2026-01-04T10:00:00Z</updated>
+          <link rel="enclosure" type="audio/mpeg" href="https://cdn.example.com/atom-plain.mp3" />
+          <link href="https://example.com/shows/atom-plain" />
+        </entry>
+        <entry>
+          <id>atom-audio-only</id>
+          <title>Atom Audio Only</title>
+          <updated>2026-01-03T10:00:00Z</updated>
+          <link rel="enclosure" type="audio/mpeg" href="https://cdn.example.com/atom-audio.mp3" />
+          <link rel="alternate" href="https://cdn.example.com/atom-audio.mp3" />
+        </entry>
+      </feed>
+    `;
+
+    const atomFeed = parsePodcastFeedXml(atomXml, "https://example.com/atom.xml");
+    expect(atomFeed.episodes.map((ep) => [ep.episodeId, ep.episodeLink])).toEqual([
+      ["atom-alt", "https://example.com/shows/atom-alt"],
+      ["atom-plain", "https://example.com/shows/atom-plain"],
+      ["atom-audio-only", undefined],
+    ]);
+  });
+
+  it("ignores Atom links with rel=self or rel=replies", () => {
+    const atomXml = `
+      <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>Atom Rel Podcast</title>
+        <entry>
+          <id>atom-self-replies</id>
+          <title>Self And Replies Only</title>
+          <updated>2026-01-05T10:00:00Z</updated>
+          <link rel="enclosure" type="audio/mpeg" href="https://cdn.example.com/ep.mp3" />
+          <link rel="self" href="https://example.com/feeds/ep.xml" />
+          <link rel="replies" href="https://example.com/episodes/ep/comments" />
+        </entry>
+      </feed>
+    `;
+
+    const atomFeed = parsePodcastFeedXml(atomXml, "https://example.com/atom.xml");
+    expect(atomFeed.episodes.map((ep) => [ep.episodeId, ep.episodeLink])).toEqual([
+      ["atom-self-replies", undefined],
+    ]);
+  });
 });

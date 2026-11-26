@@ -3,6 +3,7 @@ export type WatchHistorySource = {
   channelId?: string;
   feedUrl?: string;
   audioUrl?: string;
+  episodeLink?: string;
 };
 
 export type VideoItem = {
@@ -56,6 +57,7 @@ export type PodcastEpisodeItem = {
   title: string;
   podcastTitle: string;
   audioUrl: string;
+  episodeLink?: string;
   thumbnail: string;
   publishedAt: string;
   duration?: string;

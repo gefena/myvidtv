@@ -104,6 +104,7 @@ export function buildPodcastEpisodeItem(
     title: episode.title,
     podcastTitle: podcast.title,
     audioUrl: episode.audioUrl,
+    ...(episode.episodeLink ? { episodeLink: episode.episodeLink } : {}),
     thumbnail: episode.thumbnail || podcast.thumbnail,
     publishedAt: episode.publishedAt,
     duration: episode.duration,
@@ -111,7 +112,12 @@ export function buildPodcastEpisodeItem(
     addedAt: 0,
     lastPosition: historyEntry?.lastPosition,
     lastWatchedRatio: historyEntry?.lastWatchedRatio,
-    watchSource: { type: "podcast", feedUrl: podcast.feedUrl, audioUrl: episode.audioUrl },
+    watchSource: {
+      type: "podcast",
+      feedUrl: podcast.feedUrl,
+      audioUrl: episode.audioUrl,
+      ...(episode.episodeLink ? { episodeLink: episode.episodeLink } : {}),
+    },
   };
 }
 

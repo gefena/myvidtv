@@ -139,6 +139,9 @@ function sanitizeWatchHistory(entries: unknown[]): WatchHistoryItem[] {
             ...(typeof source?.audioUrl === "string" && source.audioUrl
               ? { audioUrl: source.audioUrl }
               : {}),
+            ...(typeof source?.episodeLink === "string" && isHttpUrl(source.episodeLink)
+              ? { episodeLink: source.episodeLink }
+              : {}),
           }
         : undefined,
     }];

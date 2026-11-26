@@ -88,6 +88,7 @@ describe("import sanitizer", () => {
             type: "podcast",
             feedUrl: "https://example.com/feed.xml",
             audioUrl: "https://cdn.example.com/audio.mp3",
+            episodeLink: "https://example.com/episodes/1",
           },
         },
       ],
@@ -100,7 +101,39 @@ describe("import sanitizer", () => {
         type: "podcast",
         feedUrl: "https://example.com/feed.xml",
         audioUrl: "https://cdn.example.com/audio.mp3",
+        episodeLink: "https://example.com/episodes/1",
       },
+    });
+  });
+
+  it("drops non-http(s) episodeLink from watch history source while keeping valid entries", () => {
+    const data = sanitizeLibraryData({
+      items: [],
+      watchHistory: [
+        {
+          mediaType: "podcast",
+          ytId: "episode-bad-link",
+          title: "Episode",
+          channelName: "Podcast",
+          thumbnail: "https://cdn.example.com/art.jpg",
+          lastPosition: 10,
+          lastWatchedRatio: 0.1,
+          firstWatchedAt: 1,
+          lastWatchedAt: 2,
+          source: {
+            type: "podcast",
+            feedUrl: "https://example.com/feed.xml",
+            audioUrl: "https://cdn.example.com/audio.mp3",
+            episodeLink: "javascript:alert(1)",
+          },
+        },
+      ],
+    });
+
+    expect(data.watchHistory[0]?.source).toEqual({
+      type: "podcast",
+      feedUrl: "https://example.com/feed.xml",
+      audioUrl: "https://cdn.example.com/audio.mp3",
     });
   });
 });
